@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Tesseract from 'tesseract.js';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://trusthire-backend2-0.onrender.com';
 
 const SAMPLE_OFFER = `Congratulations! You have been selected for a work-from-home Data Entry role at BrightPath Solutions.
 
@@ -160,14 +163,143 @@ function ScanPage({ runScan, setPage }) {
   const [text, setText] = useState('');
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [imagePreview, setImagePreview] = useState(null);
+  const [ocrStatus, setOcrStatus] = useState('');
+  const [ocrLoading, setOcrLoading] = useState(false);
   const [details, setDetails] = useState({ company: '', role: '', salary: '', recruiter_email: '', company_website: '' });
   const fileInput = useRef();
-  const canScan = text.trim().length > 20;
+  const canScan = text.trim().length >= 20;
   const setDetail = (key) => (value) => setDetails((current) => ({ ...current, [key]: value }));
-  const onFile = (file) => { if (!file) return; setFileName(file.name); setMode('upload'); setText(`Uploaded screenshot: ${file.name}. Add the offer text below to simulate OCR extraction, or use the sample offer.`); };
-  return <main className="scan-page"><div className="crumb"><button onClick={() => setPage('home')}>Home</button><span>/</span><strong>New scan</strong></div><div className="scan-layout"><section className="scan-main"><p className="eyebrow">New offer scan</p><h1>Is this job offer <em>worth trusting?</em></h1><p className="scan-intro">Share the offer below. You can edit the details we find before checking again.</p><div className="tabs" role="tablist"><button role="tab" aria-selected={mode === 'paste'} className={mode === 'paste' ? 'selected' : ''} onClick={() => setMode('paste')}>Paste offer text</button><button role="tab" aria-selected={mode === 'upload'} className={mode === 'upload' ? 'selected' : ''} onClick={() => setMode('upload')}>Upload screenshot</button></div>{mode === 'paste' ? <><label className="textarea-label"><span>Offer message</span><textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Paste the email, WhatsApp message, or job offer here…" maxLength={10000} /><small>{text.length.toLocaleString()} / 10,000 characters</small></label><button className="sample-link" onClick={() => setText(SAMPLE_OFFER)}><Icon name="spark" size={15} /> Use a sample suspicious offer</button></> : <><button className="dropzone" onClick={() => fileInput.current?.click()} onDrop={(event) => { event.preventDefault(); onFile(event.dataTransfer.files[0]); }} onDragOver={(event) => event.preventDefault()}><span className="upload-icon"><Icon name="upload" /></span><b>{fileName || 'Drop your screenshot here'}</b><p>{fileName ? 'Screenshot ready for demo extraction' : 'or click to browse · PNG or JPG · up to 5 MB'}</p></button><input ref={fileInput} type="file" accept="image/png,image/jpeg" hidden onChange={(event) => onFile(event.target.files[0])} /><label className="textarea-label extracted-text"><span>Extracted offer text <small>Demo input</small></span><textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="For this frontend demo, paste the screenshot text here…" /></label></>}
-      <button className="details-toggle" onClick={() => setFieldsOpen(!fieldsOpen)} aria-expanded={fieldsOpen}><span><Icon name="spark" size={17} /> Add details for a sharper check <small>Optional</small></span><Icon name="chevron" size={17} /></button>{fieldsOpen && <div className="detail-fields"><Field label="Company" value={details.company} onChange={setDetail('company')} placeholder="e.g. Northstar Labs" /><Field label="Role" value={details.role} onChange={setDetail('role')} placeholder="e.g. Product Designer" /><Field label="Salary" value={details.salary} onChange={setDetail('salary')} placeholder="e.g. ₹8 LPA" /><Field label="Recruiter email" type="email" value={details.recruiter_email} onChange={setDetail('recruiter_email')} placeholder="name@company.com" /><Field label="Company website" value={details.company_website} onChange={setDetail('company_website')} placeholder="company.com" /></div>}
-      <button className="button button-large scan-button" disabled={!canScan} onClick={() => runScan(text, details)}><Icon name="scan" /> Check this offer <Icon name="arrow" /></button><p className="privacy-note"><Icon name="lock" size={14} /> Your upload is only used for this check. It isn’t stored in this demo.</p></section><aside className="scan-aside"><div className="aside-card"><span className="aside-icon"><Icon name="shield" /></span><h3>What we look for</h3><ul><li>Requests for fees or deposits</li><li>Unverifiable recruiter details</li><li>Pressure to respond quickly</li><li>Missing company information</li></ul></div><p>TrustHire gives guidance, not a guarantee. Verify every offer with the company directly.</p></aside></div></main>;
+
+  const onFile = async (file) => {
+    if (!file) return;
+    setFileName(file.name);
+    setMode('upload');
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
+    setOcrLoading(true);
+    setOcrStatus('Initializing OCR engine...');
+
+    try {
+      const res = await Tesseract.recognize(file, 'eng', {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            const pct = Math.round((m.progress || 0) * 100);
+            setOcrStatus(`Scanning image text... ${pct}%`);
+          } else if (m.status) {
+            setOcrStatus(`${m.status.charAt(0).toUpperCase() + m.status.slice(1)}...`);
+          }
+        },
+      });
+
+      const extracted = (res.data?.text || '').trim();
+      if (extracted.length > 0) {
+        setText(extracted);
+        setOcrStatus('Text extracted successfully!');
+        const autoDetails = extractDetails(extracted);
+        setDetails((prev) => ({
+          company: autoDetails.company !== 'Unknown company' ? autoDetails.company : prev.company,
+          role: autoDetails.role !== 'Role not provided' ? autoDetails.role : prev.role,
+          salary: autoDetails.salary || prev.salary,
+          recruiter_email: autoDetails.recruiter_email || prev.recruiter_email,
+          company_website: autoDetails.company_website || prev.company_website,
+        }));
+      } else {
+        setOcrStatus('Could not find clear text in image. You can paste or type below.');
+      }
+    } catch (err) {
+      console.error('OCR Error:', err);
+      setOcrStatus('Failed to scan image. Please paste the offer text manually below.');
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  return (
+    <main className="scan-page">
+      <div className="crumb">
+        <button onClick={() => setPage('home')}>Home</button>
+        <span>/</span>
+        <strong>New scan</strong>
+      </div>
+      <div className="scan-layout">
+        <section className="scan-main">
+          <p className="eyebrow">New offer scan</p>
+          <h1>Is this job offer <em>worth trusting?</em></h1>
+          <p className="scan-intro">Share the offer below. You can paste text or upload an offer screenshot (WhatsApp, Telegram, email).</p>
+          <div className="tabs" role="tablist">
+            <button role="tab" aria-selected={mode === 'paste'} className={mode === 'paste' ? 'selected' : ''} onClick={() => setMode('paste')}>Paste offer text</button>
+            <button role="tab" aria-selected={mode === 'upload'} className={mode === 'upload' ? 'selected' : ''} onClick={() => setMode('upload')}>Upload screenshot (OCR)</button>
+          </div>
+          {mode === 'paste' ? (
+            <>
+              <label className="textarea-label">
+                <span>Offer message</span>
+                <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Paste the email, WhatsApp message, or job offer here…" maxLength={10000} />
+                <small>{text.length.toLocaleString()} / 10,000 characters</small>
+              </label>
+              <button className="sample-link" onClick={() => setText(SAMPLE_OFFER)}>
+                <Icon name="spark" size={15} /> Use a sample suspicious offer
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="dropzone" onClick={() => fileInput.current?.click()} onDrop={(event) => { event.preventDefault(); onFile(event.dataTransfer.files[0]); }} onDragOver={(event) => event.preventDefault()}>
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Screenshot preview" style={{ maxHeight: '110px', maxWidth: '240px', borderRadius: '8px', marginBottom: '8px', objectFit: 'contain' }} />
+                ) : (
+                  <span className="upload-icon"><Icon name="upload" /></span>
+                )}
+                <b>{fileName || 'Drop your screenshot here'}</b>
+                <p>{fileName ? 'Click or drop another image to re-scan' : 'or click to browse · PNG or JPG · scans text automatically'}</p>
+                {ocrStatus && (
+                  <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: ocrLoading ? '#fff8e7' : '#e6f7ed', color: ocrLoading ? '#996312' : '#1e754a', padding: '5px 12px', borderRadius: '15px', fontSize: '11px', fontWeight: '700' }}>
+                    {ocrLoading && <span className="pulse-dot" style={{ margin: 0 }} />}
+                    {ocrStatus}
+                  </div>
+                )}
+              </button>
+              <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => onFile(event.target.files[0])} />
+              <label className="textarea-label extracted-text">
+                <span>Extracted offer text <small>{ocrLoading ? 'Scanning in progress...' : 'Editable'}</small></span>
+                <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Recognized screenshot text will appear here automatically, or you can paste text..." />
+              </label>
+            </>
+          )}
+          <button className="details-toggle" onClick={() => setFieldsOpen(!fieldsOpen)} aria-expanded={fieldsOpen}>
+            <span><Icon name="spark" size={17} /> Add details for a sharper check <small>Optional</small></span>
+            <Icon name="chevron" size={17} />
+          </button>
+          {fieldsOpen && (
+            <div className="detail-fields">
+              <Field label="Company" value={details.company} onChange={setDetail('company')} placeholder="e.g. Northstar Labs" />
+              <Field label="Role" value={details.role} onChange={setDetail('role')} placeholder="e.g. Product Designer" />
+              <Field label="Salary" value={details.salary} onChange={setDetail('salary')} placeholder="e.g. ₹8 LPA" />
+              <Field label="Recruiter email" type="email" value={details.recruiter_email} onChange={setDetail('recruiter_email')} placeholder="name@company.com" />
+              <Field label="Company website" value={details.company_website} onChange={setDetail('company_website')} placeholder="company.com" />
+            </div>
+          )}
+          <button className="button button-large scan-button" disabled={!canScan || ocrLoading} onClick={() => runScan(text, details)}>
+            <Icon name="scan" /> Check this offer <Icon name="arrow" />
+          </button>
+          <p className="privacy-note"><Icon name="lock" size={14} /> Scans are processed securely with PostgreSQL history on Render.</p>
+        </section>
+        <aside className="scan-aside">
+          <div className="aside-card">
+            <span className="aside-icon"><Icon name="shield" /></span>
+            <h3>What we look for</h3>
+            <ul>
+              <li>Requests for fees or deposits</li>
+              <li>Unverifiable recruiter details</li>
+              <li>Pressure to respond quickly</li>
+              <li>Missing company information</li>
+            </ul>
+          </div>
+          <p>TrustHire gives guidance, not a guarantee. Verify every offer with the company directly.</p>
+        </aside>
+      </div>
+    </main>
+  );
 }
 
 function Loading({ steps }) { return <main className="loading-page"><div className="loading-card"><div className="loader-orbit"><span><Icon name="shield" size={28} /></span></div><p className="eyebrow">Checking your offer</p><h1>Looking for the details that matter.</h1><p>We’re reviewing the message and turning it into clear, useful context.</p><div className="progress-steps">{steps.map((step, index) => <div className={index <= steps.active ? 'done' : ''} key={step}><span>{index < steps.active ? <Icon name="check" size={14} /> : index + 1}</span>{step}</div>)}</div></div></main>; }
@@ -182,20 +314,169 @@ function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth }) {
 
 function DetailItem({ label, value, edit, onChange }) { return <div className="detail-item"><span>{label}</span>{edit && onChange ? <input value={value === 'Not stated' || value === 'Not found' ? '' : value} onChange={(event) => onChange(event.target.value)} /> : <b>{value}</b>}</div>; }
 
-function History({ scans, setPage, deleteScan, openAuth }) { const [filter, setFilter] = useState('all'); const [query, setQuery] = useState(''); const items = useMemo(() => scans.filter((scan) => (filter === 'all' || scan.band === filter) && `${scan.company} ${scan.role}`.toLowerCase().includes(query.toLowerCase())), [scans, filter, query]); return <main className="history-page"><div className="crumb"><button onClick={() => setPage('home')}>Home</button><span>/</span><strong>History</strong></div><div className="history-heading"><div><p className="eyebrow">Your scans</p><h1>Keep track of every <em>offer you checked.</em></h1><p>Saved scans live in this browser for the frontend demo.</p></div><button className="button" onClick={() => setPage('scan')}><Icon name="scan" size={17} /> New scan</button></div><div className="history-toolbar"><label><span className="search-symbol">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company or role" /></label><div className="filter-pills">{[['all', 'All scans'], ['high_risk', 'High risk'], ['suspicious', 'Suspicious'], ['likely_legit', 'Likely legit']].map(([value, label]) => <button className={filter === value ? 'selected' : ''} key={value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>{items.length ? <div className="history-table"><div className="history-row history-labels"><span>Company & role</span><span>Assessment</span><span>Checked</span><span aria-hidden="true" /></div>{items.map((scan) => <article className="history-row" key={scan.id}><div className="company-cell"><span className={`company-icon ${scan.band}`}>{scan.company.slice(0, 1)}</span><div><b>{scan.company}</b><p>{scan.role}</p></div></div><div className="score-cell"><strong>{scan.score}</strong><BandBadge band={scan.band} compact /></div><span className="date-cell">{scan.date}</span><div className="row-actions"><button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button><button className="delete-button" aria-label={`Delete ${scan.company} scan`} onClick={() => deleteScan(scan.id)}><Icon name="trash" size={17} /></button></div></article>)}</div> : <div className="history-empty"><span><Icon name="history" size={24} /></span><h2>No matching scans yet</h2><p>Try a different filter or check a new job offer.</p><button className="button" onClick={() => setPage('scan')}>Check an offer</button></div>}<section className="history-signin"><Icon name="lock" size={19} /><div><b>Want to keep your scans across devices?</b><p>Sign in to save your history securely when a backend is connected.</p></div><button className="secondary-button" onClick={openAuth}>Sign in</button></section></main>; }
+function History({ scans, setPage, deleteScan, openAuth, filter, setFilter, query, setQuery }) {
+  const items = useMemo(() => scans.filter((scan) => (filter === 'all' || scan.band === filter) && `${scan.company} ${scan.role}`.toLowerCase().includes(query.toLowerCase())), [scans, filter, query]);
+  return <main className="history-page"><div className="crumb"><button onClick={() => setPage('home')}>Home</button><span>/</span><strong>History</strong></div><div className="history-heading"><div><p className="eyebrow">Your scans</p><h1>Keep track of every <em>offer you checked.</em></h1><p>Scans are backed by PostgreSQL on your live backend.</p></div><button className="button" onClick={() => setPage('scan')}><Icon name="scan" size={17} /> New scan</button></div><div className="history-toolbar"><label><span className="search-symbol">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company or role" /></label><div className="filter-pills">{[['all', 'All scans'], ['high_risk', 'High risk'], ['suspicious', 'Suspicious'], ['likely_legit', 'Likely legit']].map(([value, label]) => <button className={filter === value ? 'selected' : ''} key={value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>{items.length ? <div className="history-table"><div className="history-row history-labels"><span>Company & role</span><span>Assessment</span><span>Checked</span><span aria-hidden="true" /></div>{items.map((scan) => <article className="history-row" key={scan.id}><div className="company-cell"><span className={`company-icon ${scan.band}`}>{scan.company ? scan.company.slice(0, 1) : 'O'}</span><div><b>{scan.company}</b><p>{scan.role}</p></div></div><div className="score-cell"><strong>{scan.score}</strong><BandBadge band={scan.band} compact /></div><span className="date-cell">{scan.date}</span><div className="row-actions"><button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button><button className="delete-button" aria-label={`Delete ${scan.company} scan`} onClick={() => deleteScan(scan.id)}><Icon name="trash" size={17} /></button></div></article>)}</div> : <div className="history-empty"><span><Icon name="history" size={24} /></span><h2>No matching scans yet</h2><p>Try a different filter or check a new job offer.</p><button className="button" onClick={() => setPage('scan')}>Check an offer</button></div>}<section className="history-signin"><Icon name="lock" size={19} /><div><b>Synced with Render PostgreSQL</b><p>All scanned jobs are securely persisted in your production database.</p></div><button className="secondary-button" onClick={openAuth}>Database status: Active</button></section></main>;
+}
 
-function AuthModal({ close }) { return <div className="modal-backdrop" onMouseDown={close}><section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={close}><Icon name="x" /></button><span className="brand-mark"><Icon name="shield" size={23} /></span><p className="eyebrow">Save your checks</p><h2 id="auth-title">Sign in to TrustHire</h2><p>Authentication is a UI placeholder in this frontend-only build.</p><button className="oauth-button" onClick={close}><span>G</span> Continue with Google</button><div className="or"><span />or continue with email<span /></div><label className="field"><span>Email address</span><input type="email" placeholder="you@example.com" /></label><button className="button full-button" onClick={close}>Send magic link</button><small>By continuing, you agree to receive a sign-in link. No account is created in this demo.</small></section></div>; }
+function AuthModal({ close }) { return <div className="modal-backdrop" onMouseDown={close}><section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={close}><Icon name="x" /></button><span className="brand-mark"><Icon name="shield" size={23} /></span><p className="eyebrow">Save your checks</p><h2 id="auth-title">Sign in to TrustHire</h2><p>Authentication is a UI placeholder in this build.</p><button className="oauth-button" onClick={close}><span>G</span> Continue with Google</button><div className="or"><span />or continue with email<span /></div><label className="field"><span>Email address</span><input type="email" placeholder="you@example.com" /></label><button className="button full-button" onClick={close}>Send magic link</button><small>By continuing, you agree to receive a sign-in link. No account is created in this demo.</small></section></div>; }
 
 function App() {
-  const [page, setPage] = useState('home'); const [result, setResult] = useState(null); const [loading, setLoading] = useState(null); const [auth, setAuth] = useState(false); const [saved, setSaved] = useState(false); const [scans, setScans] = useState(() => { try { return JSON.parse(localStorage.getItem('trusthire-scans')) || DEMO_SCANS; } catch { return DEMO_SCANS; } });
-  useEffect(() => { localStorage.setItem('trusthire-scans', JSON.stringify(scans)); }, [scans]);
-  const runScan = (text, overrides = {}) => { setPage('loading'); setLoading({ active: 0 }); const steps = ['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result']; [300, 700, 1050, 1450].forEach((delay, index) => setTimeout(() => setLoading({ active: index }), delay)); setTimeout(() => { const details = extractDetails(text, overrides); const analysis = analyseOffer(text, details); setResult({ ...analysis, details, text, id: crypto.randomUUID?.() || String(Date.now()) }); setSaved(false); setPage('result'); }, 1750); };
-  const recheck = (details) => { if (!result) return; runScan(result.text, details); };
-  const saveScan = () => { if (!result) return; const record = { id: result.id, ...result.details, score: result.score, band: result.band, date: 'Just now', redFlags: result.redFlags.map((flag) => flag.name), result }; setScans((current) => [record, ...current.filter((scan) => scan.id !== record.id)]); setSaved(true); };
-  const deleteScan = (id) => setScans((current) => current.filter((scan) => scan.id !== id));
+  const [page, setPage] = useState('home');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(null);
+  const [auth, setAuth] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('all');
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [scans, setScans] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('trusthire-scans')) || DEMO_SCANS; } catch { return DEMO_SCANS; }
+  });
+
+  const fetchScansFromBackend = async (filterBand = historyFilter, searchQ = historyQuery) => {
+    try {
+      const params = new URLSearchParams();
+      if (filterBand && filterBand !== 'all') params.append('band', filterBand);
+      if (searchQ && searchQ.trim()) params.append('query', searchQ.trim());
+      const res = await fetch(`${API_BASE_URL}/api/v1/scans?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const formatted = data.map((item) => ({
+            id: item.id,
+            company: item.details?.company || 'Unknown company',
+            role: item.details?.role || 'Role not provided',
+            salary: item.details?.salary || '',
+            score: item.score,
+            band: item.band,
+            date: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Today',
+            redFlags: (item.redFlags || []).map((f) => f.name || f),
+            result: item,
+          }));
+          setScans(formatted);
+          localStorage.setItem('trusthire-scans', JSON.stringify(formatted));
+        }
+      }
+    } catch (err) {
+      console.warn('Backend unavailable, using local history cache:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (page === 'history') {
+      fetchScansFromBackend(historyFilter, historyQuery);
+    }
+  }, [page, historyFilter, historyQuery]);
+
+  useEffect(() => {
+    localStorage.setItem('trusthire-scans', JSON.stringify(scans));
+  }, [scans]);
+
+  const runScan = async (text, overrides = {}) => {
+    setPage('loading');
+    setLoading({ active: 0 });
+    const steps = ['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'];
+    [300, 700, 1050, 1450].forEach((delay, index) => setTimeout(() => setLoading({ active: index }), delay));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/scans`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, details: overrides }),
+      });
+
+      if (res.ok) {
+        const backendResult = await res.json();
+        setTimeout(() => {
+          setResult(backendResult);
+          setSaved(true);
+          setPage('result');
+          const record = {
+            id: backendResult.id,
+            company: backendResult.details?.company || 'Unknown company',
+            role: backendResult.details?.role || 'Role not provided',
+            salary: backendResult.details?.salary || '',
+            score: backendResult.score,
+            band: backendResult.band,
+            date: 'Just now',
+            redFlags: (backendResult.redFlags || []).map((flag) => (typeof flag === 'string' ? flag : flag.name)),
+            result: backendResult,
+          };
+          setScans((current) => [record, ...current.filter((s) => s.id !== record.id)]);
+        }, 1650);
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend request failed, falling back to client evaluation:', err);
+    }
+
+    setTimeout(() => {
+      const details = extractDetails(text, overrides);
+      const analysis = analyseOffer(text, details);
+      const localResult = { ...analysis, details, text, id: crypto.randomUUID?.() || String(Date.now()) };
+      setResult(localResult);
+      setSaved(false);
+      setPage('result');
+    }, 1650);
+  };
+
+  const recheck = (details) => {
+    if (!result) return;
+    runScan(result.text, details);
+  };
+
+  const saveScan = () => {
+    if (!result) return;
+    const record = {
+      id: result.id,
+      company: result.details?.company || 'Unknown company',
+      role: result.details?.role || 'Role not provided',
+      salary: result.details?.salary || '',
+      score: result.score,
+      band: result.band,
+      date: 'Just now',
+      redFlags: (result.redFlags || []).map((flag) => (typeof flag === 'string' ? flag : flag.name)),
+      result,
+    };
+    setScans((current) => [record, ...current.filter((scan) => scan.id !== record.id)]);
+    setSaved(true);
+  };
+
+  const deleteScan = async (id) => {
+    try {
+      await fetch(`${API_BASE_URL}/api/v1/scans/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.warn('Failed to delete on backend:', err);
+    }
+    setScans((current) => current.filter((scan) => scan.id !== id));
+  };
+
   const startSample = () => runScan(SAMPLE_OFFER);
   const visibleResult = result || window.__trustResult;
-  return <><Header page={page} setPage={setPage} openAuth={() => setAuth(true)} />{page === 'home' && <Landing setPage={setPage} startSample={startSample} />}{page === 'scan' && <ScanPage runScan={runScan} setPage={setPage} />}{page === 'loading' && <Loading steps={Object.assign(['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'], loading || { active: 0 })} />}{page === 'result' && visibleResult && <ResultPage result={visibleResult} setPage={setPage} recheck={recheck} saveScan={saveScan} saved={saved} openAuth={() => setAuth(true)} />}{page === 'history' && <History scans={scans} setPage={setPage} deleteScan={deleteScan} openAuth={() => setAuth(true)} />}{auth && <AuthModal close={() => setAuth(false)} />}</>;
+
+  return (
+    <>
+      <Header page={page} setPage={setPage} openAuth={() => setAuth(true)} />
+      {page === 'home' && <Landing setPage={setPage} startSample={startSample} />}
+      {page === 'scan' && <ScanPage runScan={runScan} setPage={setPage} />}
+      {page === 'loading' && <Loading steps={Object.assign(['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'], loading || { active: 0 })} />}
+      {page === 'result' && visibleResult && <ResultPage result={visibleResult} setPage={setPage} recheck={recheck} saveScan={saveScan} saved={saved} openAuth={() => setAuth(true)} />}
+      {page === 'history' && (
+        <History
+          scans={scans}
+          setPage={setPage}
+          deleteScan={deleteScan}
+          openAuth={() => setAuth(true)}
+          filter={historyFilter}
+          setFilter={setHistoryFilter}
+          query={historyQuery}
+          setQuery={setHistoryQuery}
+        />
+      )}
+      {auth && <AuthModal close={() => setAuth(false)} />}
+    </>
+  );
 }
 
 export default App;
+
