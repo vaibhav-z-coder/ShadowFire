@@ -647,19 +647,19 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
   if (!user) {
     return (
       <main className="profile-page">
-        <div className="profile-hero-card" style={{ textAlign: 'center', padding: '60px 24px' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#eaf4ee', color: '#247950', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
-            <Icon name="user" size={32} />
+        <div className="profile-auth-prompt">
+          <div className="auth-prompt-icon">
+            <Icon name="user" size={26} />
           </div>
-          <h2 style={{ fontSize: '26px', marginBottom: '8px' }}>Sign in to view your profile</h2>
-          <p style={{ color: 'var(--muted)', maxWidth: '460px', margin: '0 auto 24px', fontSize: '14px', lineHeight: 1.6 }}>
-            Connect with your Google account to access personal scam analysis metrics, customize fraud prevention alerts, and sync records.
+          <h2>Sign in to view your profile</h2>
+          <p>
+            Connect with your Google account to access your personal dashboard, review verified offers, and customize scam alerts.
           </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-            <button className="button button-large" onClick={openAuth}>
-              Sign in with Google <Icon name="arrow" size={16} />
+          <div className="auth-prompt-actions">
+            <button className="prompt-primary-btn" onClick={openAuth}>
+              Continue with Google <Icon name="arrow" size={15} />
             </button>
-            <button className="secondary-button" onClick={() => setPage('home')}>
+            <button className="prompt-secondary-btn" onClick={() => setPage('home')}>
               Back to Home
             </button>
           </div>
