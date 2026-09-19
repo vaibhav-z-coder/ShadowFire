@@ -506,7 +506,167 @@ function ScanPage({ runScan, setPage, scanError, onClearError }) {
   );
 }
 
-function Loading({ steps }) { return <main className="loading-page"><div className="loading-card"><div className="loader-orbit"><span><Icon name="shield" size={28} /></span></div><p className="eyebrow">Checking your offer</p><h1>Looking for the details that matter.</h1><p>We’re reviewing the message and turning it into clear, useful context.</p><div className="progress-steps">{steps.map((step, index) => <div className={index <= steps.active ? 'done' : ''} key={step}><span>{index < steps.active ? <Icon name="check" size={14} /> : index + 1}</span>{step}</div>)}</div></div></main>; }
+const LIVE_SEARCH_CHECKS = [
+  'Verifying company identity against verified corporate records...',
+  'Inspecting recruiter email MX records & sender domain reputation...',
+  'Cross-referencing 50,000+ known employment fraud patterns...',
+  'Checking for advance-fee, equipment check & deposit scam signals...',
+  'Searching verified careers portals & genuine job listings...',
+  'Analyzing salary figures against industry compensation standards...',
+  'Testing interview protocols against Telegram / SMS scam vectors...',
+  'Zero-tolerance circuit breaker: Scanning for critical fraud triggers...',
+  'Gemini AI: Deep reasoning across all signals & context...',
+  'Synthesizing authentic safety score and verified advice...',
+];
+
+function Loading({ steps }) {
+  const [queryIndex, setQueryIndex] = useState(0);
+  const [progress, setProgress] = useState(14);
+
+  useEffect(() => {
+    // Ultra-fast search query rotation every 280ms
+    const queryTimer = setInterval(() => {
+      setQueryIndex((prev) => (prev + 1) % LIVE_SEARCH_CHECKS.length);
+    }, 280);
+
+    // Fast-climbing progress counter (14% -> 96%)
+    const progressTimer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 96) return prev;
+        const bump = Math.floor(Math.random() * 3) + 2;
+        return Math.min(96, prev + bump);
+      });
+    }, 60);
+
+    return () => {
+      clearInterval(queryTimer);
+      clearInterval(progressTimer);
+    };
+  }, []);
+
+  const activeIndex = typeof steps?.active === 'number' ? steps.active : 0;
+  const stepList = Array.isArray(steps) && steps.length > 0
+    ? steps
+    : ['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'];
+
+  const radius = 64;
+  const circumference = 2 * Math.PI * radius;
+  const strokeOffset = circumference - (progress / 100) * circumference;
+
+  return (
+    <main className="loading-page">
+      <div className="loading-card loading-card-enhanced">
+        {/* High-Velocity Circular Radar Scanner */}
+        <div className="circular-scanner-wrapper">
+          <div className="sonar-ring sonar-ring-1" />
+          <div className="sonar-ring sonar-ring-2" />
+          <div className="sonar-ring sonar-ring-3" />
+
+          <div className="circular-radar-track">
+            {/* Rapidly sweeping radar beam */}
+            <div className="radar-sweep-beam" />
+            <div className="radar-crosshair-h" />
+            <div className="radar-crosshair-v" />
+
+            {/* SVG Circular Progress Meter */}
+            <svg className="radar-svg" viewBox="0 0 160 160">
+              <circle
+                className="radar-track-bg"
+                cx="80"
+                cy="80"
+                r={radius}
+              />
+              <circle
+                className="radar-track-bar"
+                cx="80"
+                cy="80"
+                r={radius}
+                style={{
+                  strokeDasharray: circumference,
+                  strokeDashoffset: strokeOffset,
+                }}
+              />
+            </svg>
+
+            {/* Core Circular Display */}
+            <div className="radar-center-core">
+              <div className="radar-icon-pulse">
+                <Icon name="shield" size={24} />
+              </div>
+              <div className="radar-pct">{progress}%</div>
+              <div className="radar-subtext">SEARCHING</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Headings */}
+        <p className="eyebrow loading-eyebrow">
+          <span className="live-pulse-dot" /> LIVE VERIFICATION SCAN
+        </p>
+        <h1 className="loading-title">Deep Cross-Referencing Offer</h1>
+        <p className="loading-subtitle">
+          Searching public databases, corporate domains, and fraud registries at high speed.
+        </p>
+
+        {/* High-Speed Live Searching Ticker */}
+        <div className="fast-search-ticker">
+          <div className="ticker-header">
+            <span className="ticker-badge">
+              <span className="ticker-live-blink" /> FAST SEARCH ENGINE
+            </span>
+            <span className="ticker-speed">1,850+ signals / sec</span>
+          </div>
+          <div className="ticker-body">
+            <div className="ticker-icon-box">⚡</div>
+            <div className="ticker-query-content" key={queryIndex}>
+              {LIVE_SEARCH_CHECKS[queryIndex]}
+            </div>
+          </div>
+          <div className="ticker-progress-bar">
+            <div className="ticker-progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+
+        {/* Circular Progress Step Milestones */}
+        <div className="progress-steps-modern">
+          {stepList.map((step, index) => {
+            const isDone = index < activeIndex || progress > (index + 1) * 24;
+            const isActive = !isDone && (index === activeIndex || index <= Math.floor(progress / 25));
+
+            return (
+              <div
+                className={`step-row ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}
+                key={step}
+              >
+                <div className="step-circle">
+                  {isDone ? (
+                    <Icon name="check" size={13} />
+                  ) : isActive ? (
+                    <span className="active-spinner-dot" />
+                  ) : (
+                    <span>{index + 1}</span>
+                  )}
+                </div>
+                <div className="step-label">
+                  <strong>{step}</strong>
+                </div>
+                <div className="step-status-tag">
+                  {isDone ? (
+                    <span className="tag-done"><Icon name="check" size={11} /> Verified</span>
+                  ) : isActive ? (
+                    <span className="tag-active">Analyzing...</span>
+                  ) : (
+                    <span className="tag-pending">Queued</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </main>
+  );
+}
 
 function ScoreGauge({ score, band }) { const [shown, setShown] = useState(0); useEffect(() => { let start; const run = (time) => { if (!start) start = time; const next = Math.min(score, Math.round((time - start) / 950 * score)); setShown(next); if (next < score) requestAnimationFrame(run); }; const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); }, [score]); const radius = 105; const length = Math.PI * radius; const offset = length - (score / 100) * length; return <div className={`gauge ${band}`} role="img" aria-label={`Trust score ${score} out of 100, ${bandMeta(band).label}`}><svg viewBox="0 0 260 145"><path className="gauge-track" d="M25 130a105 105 0 0 1 210 0" pathLength="100" /><path className="gauge-value" d="M25 130a105 105 0 0 1 210 0" pathLength="100" style={{ strokeDasharray: '100', strokeDashoffset: 100 - score }} /></svg><div className="gauge-score"><strong>{shown}</strong><span>/100</span></div></div>; }
 
@@ -1371,12 +1531,12 @@ function App() {
     setPage('loading');
     setLoading({ active: 0 });
     const steps = [
-      'Reading offer document',
-      'Extracting company & role',
-      'Searching genuine sources',
-      'Verifying with Gemini AI',
+      'Reading the offer',
+      'Extracting details',
+      'Checking signals',
+      'Scoring the result',
     ];
-    [300, 700, 1100, 1500].forEach((delay, index) =>
+    [400, 1100, 1900, 2700].forEach((delay, index) =>
       setTimeout(() => setLoading({ active: index }), delay)
     );
 
