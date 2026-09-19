@@ -851,6 +851,8 @@ function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth, user 
 function DetailItem({ label, value, edit, onChange }) { return <div className="detail-item"><span>{label}</span>{edit && onChange ? <input value={value === 'Not stated' || value === 'Not found' ? '' : value} onChange={(event) => onChange(event.target.value)} /> : <b>{value}</b>}</div>; }
 
 function History({ scans, setPage, deleteScan, openAuth, filter, setFilter, query, setQuery, user }) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
   const items = useMemo(
     () => scans.filter((scan) => (filter === 'all' || scan.band === filter) && `${scan.company} ${scan.role}`.toLowerCase().includes(query.toLowerCase())),
     [scans, filter, query]
@@ -930,10 +932,38 @@ function History({ scans, setPage, deleteScan, openAuth, filter, setFilter, quer
               </div>
               <span className="date-cell">{scan.date}</span>
               <div className="row-actions">
-                <button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button>
-                <button className="delete-button" aria-label={`Delete ${scan.company} scan`} onClick={() => deleteScan(scan.id)}>
-                  <Icon name="trash" size={17} />
-                </button>
+                {confirmDeleteId === scan.id ? (
+                  <div className="delete-confirm-group" onClick={(e) => e.stopPropagation()}>
+                    <span className="confirm-prompt">Delete?</span>
+                    <button
+                      className="confirm-delete-btn"
+                      onClick={() => {
+                        setConfirmDeleteId(null);
+                        deleteScan(scan.id);
+                      }}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      className="confirm-cancel-btn"
+                      onClick={() => setConfirmDeleteId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button>
+                    <button
+                      className="delete-button"
+                      aria-label={`Delete ${scan.company} scan`}
+                      onClick={() => setConfirmDeleteId(scan.id)}
+                      title="Delete scan"
+                    >
+                      <Icon name="trash" size={17} />
+                    </button>
+                  </>
+                )}
               </div>
             </article>
           ))}
@@ -1778,18 +1808,19 @@ function App() {
     } catch {}
   };
 
-  const deleteScan = async (id) => {
-    try {
-      await fetch(`${API_BASE_URL}/api/v1/scans/${id}`, { method: 'DELETE' });
-    } catch (err) {
-      console.warn('Failed to delete on backend:', err);
-    }
+  const deleteScan = (id) => {
+    // 1. Instantly remove from UI and update account storage (zero lag)
     setScans((current) => {
       const updated = current.filter((scan) => scan.id !== id);
       if (user && user.email) {
         saveUserScans(user, updated);
       }
       return updated;
+    });
+
+    // 2. Fire backend DB deletion asynchronously
+    fetch(`${API_BASE_URL}/api/v1/scans/${id}`, { method: 'DELETE' }).catch((err) => {
+      console.warn('Failed to delete on backend:', err);
     });
   };
 
