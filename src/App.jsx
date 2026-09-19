@@ -555,7 +555,7 @@ function AuthModal({ close, onLoginSuccess }) {
         <h2 id="auth-title">Sign in to TrustHire</h2>
         <p>Sign in with Google to sync and save your checks securely.</p>
 
-        <div style={{ marginTop: '22px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+        <div className="auth-google-box">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => setAuthError('Google sign-in could not be completed. Please try again.')}
@@ -563,7 +563,7 @@ function AuthModal({ close, onLoginSuccess }) {
             shape="pill"
             theme="outline"
             size="large"
-            width="280"
+            width="320"
             text="continue_with"
           />
         </div>
@@ -699,9 +699,9 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
 
           <div className="profile-hero-details">
             <div className="profile-badges-row">
-              <span className="pill-badge verified"><Icon name="shield" size={12} /> Google Verified</span>
+              <span className="pill-badge verified"><Icon name="shield" size={13} /> Google Verified</span>
               <span className="pill-badge role">Candidate Guard</span>
-              <span className="pill-badge db-live"><span className="pulse-dot" style={{ width: '6px', height: '6px', margin: 0 }} /> Protection Active</span>
+              <span className="pill-badge active-live"><span className="pulse-dot" /> Protection Active</span>
             </div>
             <h1>{user.name || 'TrustHire Candidate'}</h1>
             <p className="profile-email-text">{user.email || 'No email associated'}</p>
@@ -709,13 +709,13 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
         </div>
 
         <div className="profile-hero-actions">
-          <button className="button button-small" onClick={() => setPage('scan')}>
+          <button className="hero-action-btn primary" onClick={() => setPage('scan')}>
             <Icon name="scan" size={15} /> Check an offer
           </button>
-          <button className="secondary-button" onClick={() => setPage('history')}>
+          <button className="hero-action-btn secondary" onClick={() => setPage('history')}>
             <Icon name="history" size={15} /> History ({stats.total})
           </button>
-          <button className="danger-button" onClick={onSignOut} title="Sign out of TrustHire">
+          <button className="hero-action-btn danger" onClick={onSignOut} title="Sign out of TrustHire">
             <Icon name="logout" size={15} /> Sign out
           </button>
         </div>
@@ -726,7 +726,7 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
         <div className="profile-stat-box">
           <div className="stat-head">
             <span className="stat-label">Total Offers Analyzed</span>
-            <Icon name="scan" size={16} />
+            <span className="stat-icon-badge neutral"><Icon name="scan" size={15} /></span>
           </div>
           <div className="stat-value">{stats.total}</div>
           <div className="stat-sub">Saved in your secure account</div>
@@ -735,7 +735,7 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
         <div className="profile-stat-box danger">
           <div className="stat-head">
             <span className="stat-label">High-Risk Scams Blocked</span>
-            <span className="badge-dot red" />
+            <span className="stat-icon-badge danger"><Icon name="shield" size={15} /></span>
           </div>
           <div className="stat-value text-red">{stats.highRisk}</div>
           <div className="stat-sub">Flagged with scam evidence</div>
@@ -744,16 +744,16 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
         <div className="profile-stat-box success">
           <div className="stat-head">
             <span className="stat-label">Legitimate Offers Verified</span>
-            <span className="badge-dot green" />
+            <span className="stat-icon-badge success"><Icon name="check" size={15} /></span>
           </div>
           <div className="stat-value text-green">{stats.likelyLegit}</div>
           <div className="stat-sub">Passed domain & fee checks</div>
         </div>
 
-        <div className="profile-stat-box">
+        <div className="profile-stat-box safe">
           <div className="stat-head">
             <span className="stat-label">Safety Shield Status</span>
-            <Icon name="shield" size={16} />
+            <span className="stat-icon-badge safe"><Icon name="lock" size={15} /></span>
           </div>
           <div className="stat-value text-live">Active</div>
           <div className="stat-sub">Real-time scam protection</div>
