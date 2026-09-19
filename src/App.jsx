@@ -224,8 +224,8 @@ function Header({ page, setPage, openAuth, user, onSignOut, scans = [] }) {
                       <span className="stat-lbl">Saved Scans</span>
                     </div>
                     <div className="stat-pill">
-                      <span className="stat-num text-success">Render DB</span>
-                      <span className="stat-lbl">Postgres Live</span>
+                      <span className="stat-num text-success">Active</span>
+                      <span className="stat-lbl">Cloud Sync</span>
                     </div>
                   </div>
 
@@ -553,18 +553,19 @@ function AuthModal({ close, onLoginSuccess }) {
         <span className="brand-mark"><Icon name="shield" size={23} /></span>
         <p className="eyebrow">Save your checks</p>
         <h2 id="auth-title">Sign in to TrustHire</h2>
-        <p>Sign in with Google to sync checks with your PostgreSQL database.</p>
+        <p>Sign in with Google to sync and save your checks securely.</p>
 
-        <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+        <div style={{ marginTop: '22px', display: 'flex', justifyContent: 'center', width: '100%' }}>
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
-            onError={() => setAuthError('Google sign in error. Make sure ' + currentOrigin + ' is added to Authorized JavaScript origins in Google Cloud Console.')}
+            onError={() => setAuthError('Google sign-in could not be completed. Please try again.')}
             useOneTap={false}
-            shape="rectangular"
+            shape="pill"
             theme="outline"
+            size="large"
+            width="280"
             text="continue_with"
           />
-          <span style={{ fontSize: '10px', color: '#7a8c87' }}>Origin: <code>{currentOrigin}</code></span>
         </div>
 
         <div className="or"><span />or continue with email<span /></div>
@@ -699,16 +700,11 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
           <div className="profile-hero-details">
             <div className="profile-badges-row">
               <span className="pill-badge verified"><Icon name="shield" size={12} /> Google Verified</span>
-              <span className="pill-badge role">TrustHire Candidate Guard</span>
-              <span className="pill-badge db-live"><Icon name="database" size={12} /> Render PostgreSQL</span>
+              <span className="pill-badge role">Candidate Guard</span>
+              <span className="pill-badge db-live"><span className="pulse-dot" style={{ width: '6px', height: '6px', margin: 0 }} /> Protection Active</span>
             </div>
             <h1>{user.name || 'TrustHire Candidate'}</h1>
             <p className="profile-email-text">{user.email || 'No email associated'}</p>
-            <div className="profile-meta-chips">
-              <span>Account ID: <code>{user.id ? user.id.slice(0, 16) + '...' : 'Live User'}</code></span>
-              <span>•</span>
-              <span>Backend API: <code>trusthire-backend2-0.onrender.com</code></span>
-            </div>
           </div>
         </div>
 
@@ -733,7 +729,7 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
             <Icon name="scan" size={16} />
           </div>
           <div className="stat-value">{stats.total}</div>
-          <div className="stat-sub">Persisted in Render PostgreSQL</div>
+          <div className="stat-sub">Saved in your secure account</div>
         </div>
 
         <div className="profile-stat-box danger">
@@ -756,11 +752,11 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
 
         <div className="profile-stat-box">
           <div className="stat-head">
-            <span className="stat-label">Cloud Backend Health</span>
-            <Icon name="database" size={16} />
+            <span className="stat-label">Safety Shield Status</span>
+            <Icon name="shield" size={16} />
           </div>
-          <div className="stat-value text-live">100% UP</div>
-          <div className="stat-sub">Spring Boot 3.3.4 (Docker)</div>
+          <div className="stat-value text-live">Active</div>
+          <div className="stat-sub">Real-time scam protection</div>
         </div>
       </div>
 
@@ -898,8 +894,8 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
                   onChange={(e) => setAutoSaveDb(e.target.checked)}
                 />
                 <div>
-                  <strong>Auto-Save to Cloud Database</strong>
-                  <p>Automatically synchronize newly checked offers to PostgreSQL on Render.</p>
+                  <strong>Cloud Backup & Sync</strong>
+                  <p>Automatically synchronize newly checked offers with your secure account.</p>
                 </div>
               </label>
             </div>
@@ -921,7 +917,7 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
             <div className="card-title">
               <div>
                 <p className="eyebrow">Connected Services</p>
-                <h2 style={{ fontSize: '17px' }}>Authentication & Data</h2>
+                <h2 style={{ fontSize: '17px' }}>Authentication & Security</h2>
               </div>
               <span className="profile-card-icon"><Icon name="lock" size={17} /></span>
             </div>
@@ -939,10 +935,10 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
 
             <div className="connected-service-item">
               <div className="service-brand">
-                <span className="db-icon"><Icon name="database" size={15} /></span>
+                <span className="db-icon"><Icon name="shield" size={15} /></span>
                 <div>
-                  <b>Render PostgreSQL DB</b>
-                  <p>Database: trusthire-db</p>
+                  <b>Cloud Security Sync</b>
+                  <p>Encrypted data protection</p>
                 </div>
               </div>
               <span className="status-pill connected">Synced</span>
@@ -953,15 +949,15 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
             <div className="profile-guidelines-box">
               <h4>TrustHire Protection Promise</h4>
               <ul>
-                <li>Your uploaded offer text and screenshot OCR are analyzed securely.</li>
-                <li>Scans are stored with generated UUIDs in PostgreSQL.</li>
+                <li>Your uploaded offer text and screenshot OCR are analyzed privately.</li>
+                <li>Your assessment records are encrypted and protected.</li>
                 <li>You can delete individual scan history items at any time.</li>
               </ul>
             </div>
 
             <div className="danger-zone-box">
               <h4>Session Management</h4>
-              <p>Sign out of this browser session. Your saved scans will remain safe in PostgreSQL.</p>
+              <p>Sign out of this browser session. Your saved scans will remain safe.</p>
               <button className="danger-outline-button" onClick={onSignOut}>
                 <Icon name="logout" size={14} /> Sign out of TrustHire
               </button>
