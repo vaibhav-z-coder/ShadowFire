@@ -694,13 +694,19 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
           </div>
 
           <div className="profile-hero-details">
-            <div className="profile-badges-row">
-              <span className="pill-badge verified"><Icon name="shield" size={13} /> Google Verified</span>
-              <span className="pill-badge role">Candidate Guard</span>
-              <span className="pill-badge active-live"><span className="pulse-dot" /> Protection Active</span>
+            <div className="profile-name-row">
+              <h1>{user.name || 'TrustHire Candidate'}</h1>
+              <span className="pill-badge verified">
+                <Icon name="shield" size={12} /> Google Verified
+              </span>
             </div>
-            <h1>{user.name || 'TrustHire Candidate'}</h1>
             <p className="profile-email-text">{user.email || 'No email associated'}</p>
+            <div className="profile-badges-row">
+              <span className="pill-badge role">Candidate Guard</span>
+              <span className="pill-badge active-live">
+                <span className="pulse-dot" /> Protection Active
+              </span>
+            </div>
           </div>
         </div>
 
