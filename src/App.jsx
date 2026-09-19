@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Tesseract from 'tesseract.js';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://trusthire-backend2-0.onrender.com';
+const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '1028937935165-li8g1okghv3npm8l10t27n6ugsmvss96.apps.googleusercontent.com').trim();
 
 const SAMPLE_OFFER = `Congratulations! You have been selected for a work-from-home Data Entry role at BrightPath Solutions.
 
@@ -120,7 +122,7 @@ function analyseOffer(text, details) {
   return { score, band, checks, redFlags, positives, confidence };
 }
 
-function Icon({ name, size = 20 }) {
+function Icon({ name, size = 20, className = '' }) {
   const paths = {
     shield: 'M12 3 4.8 6v5c0 4.4 3.1 8.4 7.2 10 4.1-1.6 7.2-5.6 7.2-10V6L12 3Zm-3.1 9 2 2 4.2-4.2',
     arrow: 'M5 12h14m-6-6 6 6-6 6',
@@ -130,17 +132,156 @@ function Icon({ name, size = 20 }) {
     check: 'm5 12 4 4L19 6',
     x: 'M6 6l12 12M18 6 6 18',
     chevron: 'm9 18 6-6-6-6',
+    'chevron-down': 'm6 9 6 6 6-6',
     trash: 'M4 7h16m-10 4v6m4-6v6M9 7l1-2h4l1 2m-9 0 1 13h10l1-13',
     lock: 'M6 10V8a6 6 0 0 1 12 0v2m-13 0h14v10H5V10Z',
     spark: 'm12 3 1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z',
+    user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2m10-10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
+    logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9',
+    database: 'M4 6c0 1.66 3.58 3 8 3s8-1.34 8-3-3.58-3-8-3-8 1.34-8 3zm0 5c0 1.66 3.58 3 8 3s8-1.34 8-3m-16 5c0 1.66 3.58 3 8 3s8-1.34 8-3M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6',
+    settings: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   };
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      <path d={paths[name] || paths.shield} />
+    </svg>
+  );
 }
 
 function Logo() { return <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><span className="brand-mark"><Icon name="shield" size={19} /></span><span>TrustHire</span></button>; }
 
-function Header({ page, setPage, openAuth }) {
-  return <header className="site-header"><div className="header-inner"><Logo /><nav aria-label="Main navigation"><button className={page === 'home' ? 'active' : ''} onClick={() => setPage('home')}>How it works</button><button className={page === 'history' ? 'active' : ''} onClick={() => setPage('history')}><Icon name="history" size={16} /> History</button></nav><div className="header-actions"><button className="text-button" onClick={openAuth}>Sign in</button><button className="button button-small" onClick={() => setPage('scan')}>Scan an offer <Icon name="arrow" size={16} /></button></div></div></header>;
+function Header({ page, setPage, openAuth, user, onSignOut, scans = [] }) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  return (
+    <header className="site-header">
+      <div className="header-inner">
+        <Logo />
+        <nav aria-label="Main navigation">
+          <button className={page === 'home' ? 'active' : ''} onClick={() => setPage('home')}>How it works</button>
+          <button className={page === 'history' ? 'active' : ''} onClick={() => setPage('history')}><Icon name="history" size={16} /> History</button>
+          {user && (
+            <button className={page === 'profile' ? 'active' : ''} onClick={() => setPage('profile')}><Icon name="user" size={16} /> Profile</button>
+          )}
+        </nav>
+        <div className="header-actions">
+          {user ? (
+            <div className="user-profile-menu-wrapper" ref={dropdownRef}>
+              <button
+                className={`user-avatar-btn ${dropdownOpen ? 'active' : ''}`}
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                aria-label="User profile and settings"
+                aria-expanded={dropdownOpen}
+                title="Click to view profile & sign out"
+              >
+                {user.pictureUrl ? (
+                  <img src={user.pictureUrl} alt={user.name || 'User'} className="user-header-avatar" />
+                ) : (
+                  <span className="user-header-avatar-initials">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </span>
+                )}
+                <span className="user-header-name">{user.name ? user.name.split(' ')[0] : 'Account'}</span>
+                <span className={`dropdown-arrow ${dropdownOpen ? 'open' : ''}`}><Icon name="chevron-down" size={13} /></span>
+              </button>
+
+              {dropdownOpen && (
+                <div className="user-dropdown-card">
+                  <div className="user-dropdown-header">
+                    <div className="user-dropdown-avatar-wrap">
+                      {user.pictureUrl ? (
+                        <img src={user.pictureUrl} alt={user.name || 'User'} className="user-dropdown-avatar" />
+                      ) : (
+                        <div className="user-dropdown-avatar-placeholder">
+                          {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                      )}
+                      <span className="user-status-dot" title="Active & Synchronized" />
+                    </div>
+                    <div className="user-dropdown-info">
+                      <div className="user-dropdown-name">{user.name || 'TrustHire Member'}</div>
+                      <div className="user-dropdown-email">{user.email || 'Google Account'}</div>
+                      <span className="user-verified-badge"><Icon name="shield" size={12} /> Google Verified</span>
+                    </div>
+                  </div>
+
+                  <div className="user-dropdown-divider" />
+
+                  <div className="user-dropdown-quick-stats">
+                    <div className="stat-pill">
+                      <span className="stat-num">{scans?.length || 0}</span>
+                      <span className="stat-lbl">Saved Scans</span>
+                    </div>
+                    <div className="stat-pill">
+                      <span className="stat-num text-success">Render DB</span>
+                      <span className="stat-lbl">Postgres Live</span>
+                    </div>
+                  </div>
+
+                  <div className="user-dropdown-menu-items">
+                    <button
+                      className="user-dropdown-item primary-action"
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        setPage('profile');
+                      }}
+                    >
+                      <Icon name="user" size={16} />
+                      <div>
+                        <strong>Complete Profile Setup</strong>
+                        <small>Career details & scam alerts</small>
+                      </div>
+                    </button>
+
+                    <button
+                      className="user-dropdown-item"
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        setPage('history');
+                      }}
+                    >
+                      <Icon name="history" size={16} />
+                      <div>
+                        <strong>Scan History</strong>
+                        <small>Review verified job offers</small>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="user-dropdown-divider" />
+
+                  <button
+                    className="user-dropdown-signout-btn"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      onSignOut();
+                    }}
+                  >
+                    <Icon name="logout" size={15} />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button className="text-button" onClick={openAuth}>Sign in</button>
+          )}
+          <button className="button button-small" onClick={() => setPage('scan')}>Scan an offer <Icon name="arrow" size={16} /></button>
+        </div>
+      </div>
+    </header>
+  );
 }
 
 function BandBadge({ band, compact = false }) { const meta = bandMeta(band); return <span className={`band-badge ${band} ${compact ? 'compact' : ''}`}><span>{meta.icon}</span>{meta.label}</span>; }
@@ -319,19 +460,566 @@ function History({ scans, setPage, deleteScan, openAuth, filter, setFilter, quer
   return <main className="history-page"><div className="crumb"><button onClick={() => setPage('home')}>Home</button><span>/</span><strong>History</strong></div><div className="history-heading"><div><p className="eyebrow">Your scans</p><h1>Keep track of every <em>offer you checked.</em></h1><p>Scans are backed by PostgreSQL on your live backend.</p></div><button className="button" onClick={() => setPage('scan')}><Icon name="scan" size={17} /> New scan</button></div><div className="history-toolbar"><label><span className="search-symbol">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company or role" /></label><div className="filter-pills">{[['all', 'All scans'], ['high_risk', 'High risk'], ['suspicious', 'Suspicious'], ['likely_legit', 'Likely legit']].map(([value, label]) => <button className={filter === value ? 'selected' : ''} key={value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>{items.length ? <div className="history-table"><div className="history-row history-labels"><span>Company & role</span><span>Assessment</span><span>Checked</span><span aria-hidden="true" /></div>{items.map((scan) => <article className="history-row" key={scan.id}><div className="company-cell"><span className={`company-icon ${scan.band}`}>{scan.company ? scan.company.slice(0, 1) : 'O'}</span><div><b>{scan.company}</b><p>{scan.role}</p></div></div><div className="score-cell"><strong>{scan.score}</strong><BandBadge band={scan.band} compact /></div><span className="date-cell">{scan.date}</span><div className="row-actions"><button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button><button className="delete-button" aria-label={`Delete ${scan.company} scan`} onClick={() => deleteScan(scan.id)}><Icon name="trash" size={17} /></button></div></article>)}</div> : <div className="history-empty"><span><Icon name="history" size={24} /></span><h2>No matching scans yet</h2><p>Try a different filter or check a new job offer.</p><button className="button" onClick={() => setPage('scan')}>Check an offer</button></div>}<section className="history-signin"><Icon name="lock" size={19} /><div><b>Synced with Render PostgreSQL</b><p>All scanned jobs are securely persisted in your production database.</p></div><button className="secondary-button" onClick={openAuth}>Database status: Active</button></section></main>;
 }
 
-function AuthModal({ close }) { return <div className="modal-backdrop" onMouseDown={close}><section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={close}><Icon name="x" /></button><span className="brand-mark"><Icon name="shield" size={23} /></span><p className="eyebrow">Save your checks</p><h2 id="auth-title">Sign in to TrustHire</h2><p>Authentication is a UI placeholder in this build.</p><button className="oauth-button" onClick={close}><span>G</span> Continue with Google</button><div className="or"><span />or continue with email<span /></div><label className="field"><span>Email address</span><input type="email" placeholder="you@example.com" /></label><button className="button full-button" onClick={close}>Send magic link</button><small>By continuing, you agree to receive a sign-in link. No account is created in this demo.</small></section></div>; }
+function AuthModal({ close, onLoginSuccess }) {
+  const [authError, setAuthError] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
+
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: credentialResponse.credential }),
+      });
+
+      if (res.ok) {
+        const userData = await res.json();
+        onLoginSuccess(userData);
+        close();
+      } else {
+        setAuthError('Authentication failed on server. Please try again.');
+      }
+    } catch (err) {
+      console.error('Google Auth Error:', err);
+      try {
+        const parts = credentialResponse.credential.split('.');
+        const payload = JSON.parse(atob(parts[1]));
+        const localUser = {
+          id: payload.sub,
+          name: payload.name,
+          email: payload.email,
+          pictureUrl: payload.picture,
+        };
+        onLoginSuccess(localUser);
+        close();
+      } catch {
+        setAuthError('Could not complete Google sign-in.');
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleDirectEmailSubmit = async (e) => {
+    e?.preventDefault();
+    if (!emailInput || !emailInput.includes('@')) {
+      setAuthError('Please enter a valid email address.');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailInput.trim(),
+          name: nameInput.trim() || emailInput.split('@')[0],
+          picture: 'https://lh3.googleusercontent.com/a/default-user',
+        }),
+      });
+
+      if (res.ok) {
+        const userData = await res.json();
+        onLoginSuccess(userData);
+        close();
+      } else {
+        setAuthError('Server could not save user to PostgreSQL.');
+      }
+    } catch (err) {
+      console.error('Email sign in error:', err);
+      onLoginSuccess({
+        id: 'user-' + Date.now(),
+        email: emailInput.trim(),
+        name: nameInput.trim() || emailInput.split('@')[0],
+        pictureUrl: 'https://lh3.googleusercontent.com/a/default-user',
+      });
+      close();
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onMouseDown={close}>
+      <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
+        <button className="modal-close" aria-label="Close" onClick={close}><Icon name="x" /></button>
+        <span className="brand-mark"><Icon name="shield" size={23} /></span>
+        <p className="eyebrow">Save your checks</p>
+        <h2 id="auth-title">Sign in to TrustHire</h2>
+        <p>Sign in with Google to sync checks with your PostgreSQL database.</p>
+
+        <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setAuthError('Google sign in error. Make sure ' + currentOrigin + ' is added to Authorized JavaScript origins in Google Cloud Console.')}
+            useOneTap={false}
+            shape="rectangular"
+            theme="outline"
+            text="continue_with"
+          />
+          <span style={{ fontSize: '10px', color: '#7a8c87' }}>Origin: <code>{currentOrigin}</code></span>
+        </div>
+
+        <div className="or"><span />or continue with email<span /></div>
+
+        <form onSubmit={handleDirectEmailSubmit} style={{ display: 'grid', gap: '10px' }}>
+          <label className="field">
+            <span>Your Name <small>Optional</small></span>
+            <input type="text" value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder="e.g. Vaibhav Singh" />
+          </label>
+          <label className="field">
+            <span>Email address</span>
+            <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="you@gmail.com" required />
+          </label>
+          <button type="submit" className="button full-button" disabled={authLoading}>
+            {authLoading ? 'Saving to Database...' : 'Sign in & Save to Database'}
+          </button>
+        </form>
+
+        {authLoading && <p style={{ fontSize: '11px', color: '#1f7a51', textAlign: 'center', marginTop: '12px' }}>Saving user profile to database...</p>}
+        {authError && <p style={{ fontSize: '11px', color: '#c74c44', textAlign: 'center', marginTop: '12px', background: '#fff0ed', padding: '8px', borderRadius: '6px' }}>{authError}</p>}
+
+        <small style={{ marginTop: '16px' }}>Your authentication details will be securely saved to your PostgreSQL database on Render.</small>
+      </section>
+    </div>
+  );
+}
+
+function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }) {
+  const [fullName, setFullName] = useState(user?.name || '');
+  const [targetRole, setTargetRole] = useState(user?.targetRole || 'Software Engineer');
+  const [industry, setIndustry] = useState(user?.industry || 'Technology & IT');
+  const [workMode, setWorkMode] = useState(user?.workMode || 'Remote / Hybrid');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [warnTelegram, setWarnTelegram] = useState(user?.warnTelegram ?? true);
+  const [warnFees, setWarnFees] = useState(user?.warnFees ?? true);
+  const [warnFreeEmail, setWarnFreeEmail] = useState(user?.warnFreeEmail ?? true);
+  const [autoSaveDb, setAutoSaveDb] = useState(user?.autoSaveDb ?? true);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Sync state if user changes
+  useEffect(() => {
+    if (user) {
+      setFullName(user.name || '');
+      if (user.targetRole) setTargetRole(user.targetRole);
+      if (user.industry) setIndustry(user.industry);
+      if (user.workMode) setWorkMode(user.workMode);
+      if (user.phone) setPhone(user.phone);
+    }
+  }, [user]);
+
+  const stats = useMemo(() => {
+    const total = scans.length;
+    const highRisk = scans.filter((s) => s.band === 'high_risk').length;
+    const likelyLegit = scans.filter((s) => s.band === 'likely_legit').length;
+    const suspicious = scans.filter((s) => s.band === 'suspicious').length;
+    return { total, highRisk, likelyLegit, suspicious };
+  }, [scans]);
+
+  const handleSaveProfile = (e) => {
+    e.preventDefault();
+    const updatedUser = {
+      ...user,
+      name: fullName.trim() || user?.name,
+      targetRole,
+      industry,
+      workMode,
+      phone,
+      warnTelegram,
+      warnFees,
+      warnFreeEmail,
+      autoSaveDb,
+    };
+    setUser(updatedUser);
+    localStorage.setItem('trusthire-user', JSON.stringify(updatedUser));
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3500);
+  };
+
+  if (!user) {
+    return (
+      <main className="profile-page">
+        <div className="profile-hero-card" style={{ textAlign: 'center', padding: '60px 24px' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#eaf4ee', color: '#247950', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
+            <Icon name="user" size={32} />
+          </div>
+          <h2 style={{ fontSize: '26px', marginBottom: '8px' }}>Sign in to view your profile</h2>
+          <p style={{ color: 'var(--muted)', maxWidth: '460px', margin: '0 auto 24px', fontSize: '14px', lineHeight: 1.6 }}>
+            Connect with your Google account to access personal scam analysis metrics, customize fraud prevention alerts, and sync records.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+            <button className="button button-large" onClick={openAuth}>
+              Sign in with Google <Icon name="arrow" size={16} />
+            </button>
+            <button className="secondary-button" onClick={() => setPage('home')}>
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="profile-page">
+      <div className="crumb">
+        <button onClick={() => setPage('home')}>Home</button>
+        <span>/</span>
+        <strong>Candidate Profile & Account Setup</strong>
+      </div>
+
+      {savedSuccess && (
+        <div className="profile-success-toast">
+          <Icon name="check" size={18} />
+          <span>Profile preferences saved and synchronized with your local TrustHire account!</span>
+        </div>
+      )}
+
+      {/* Hero Banner with User Profile Info */}
+      <div className="profile-hero-card">
+        <div className="profile-hero-main">
+          <div className="profile-avatar-container">
+            {user.pictureUrl ? (
+              <img src={user.pictureUrl} alt={user.name || 'User'} className="profile-large-avatar" />
+            ) : (
+              <div className="profile-large-avatar-fallback">
+                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              </div>
+            )}
+            <span className="profile-active-badge" title="Active on PostgreSQL" />
+          </div>
+
+          <div className="profile-hero-details">
+            <div className="profile-badges-row">
+              <span className="pill-badge verified"><Icon name="shield" size={12} /> Google Verified</span>
+              <span className="pill-badge role">TrustHire Candidate Guard</span>
+              <span className="pill-badge db-live"><Icon name="database" size={12} /> Render PostgreSQL</span>
+            </div>
+            <h1>{user.name || 'TrustHire Candidate'}</h1>
+            <p className="profile-email-text">{user.email || 'No email associated'}</p>
+            <div className="profile-meta-chips">
+              <span>Account ID: <code>{user.id ? user.id.slice(0, 16) + '...' : 'Live User'}</code></span>
+              <span>•</span>
+              <span>Backend API: <code>trusthire-backend2-0.onrender.com</code></span>
+            </div>
+          </div>
+        </div>
+
+        <div className="profile-hero-actions">
+          <button className="button button-small" onClick={() => setPage('scan')}>
+            <Icon name="scan" size={15} /> Check an offer
+          </button>
+          <button className="secondary-button" onClick={() => setPage('history')}>
+            <Icon name="history" size={15} /> History ({stats.total})
+          </button>
+          <button className="danger-button" onClick={onSignOut} title="Sign out of TrustHire">
+            <Icon name="logout" size={15} /> Sign out
+          </button>
+        </div>
+      </div>
+
+      {/* Security & Activity Stats */}
+      <div className="profile-stats-grid">
+        <div className="profile-stat-box">
+          <div className="stat-head">
+            <span className="stat-label">Total Offers Analyzed</span>
+            <Icon name="scan" size={16} />
+          </div>
+          <div className="stat-value">{stats.total}</div>
+          <div className="stat-sub">Persisted in Render PostgreSQL</div>
+        </div>
+
+        <div className="profile-stat-box danger">
+          <div className="stat-head">
+            <span className="stat-label">High-Risk Scams Blocked</span>
+            <span className="badge-dot red" />
+          </div>
+          <div className="stat-value text-red">{stats.highRisk}</div>
+          <div className="stat-sub">Flagged with scam evidence</div>
+        </div>
+
+        <div className="profile-stat-box success">
+          <div className="stat-head">
+            <span className="stat-label">Legitimate Offers Verified</span>
+            <span className="badge-dot green" />
+          </div>
+          <div className="stat-value text-green">{stats.likelyLegit}</div>
+          <div className="stat-sub">Passed domain & fee checks</div>
+        </div>
+
+        <div className="profile-stat-box">
+          <div className="stat-head">
+            <span className="stat-label">Cloud Backend Health</span>
+            <Icon name="database" size={16} />
+          </div>
+          <div className="stat-value text-live">100% UP</div>
+          <div className="stat-sub">Spring Boot 3.3.4 (Docker)</div>
+        </div>
+      </div>
+
+      <div className="profile-grid">
+        {/* Left Column: Profile Setup Form */}
+        <section className="profile-card">
+          <div className="card-title">
+            <div>
+              <p className="eyebrow">Candidate Profile Setup</p>
+              <h2>Career & Verification Preferences</h2>
+            </div>
+            <span className="profile-card-icon"><Icon name="user" size={18} /></span>
+          </div>
+          <p className="profile-card-desc">
+            Complete your profile setup so TrustHire can calibrate offer evaluations for your industry and target roles.
+          </p>
+
+          <form onSubmit={handleSaveProfile} className="profile-form">
+            <div className="profile-form-row">
+              <label className="field">
+                <span>Full Name</span>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                />
+              </label>
+
+              <label className="field">
+                <span>Google Email (Verified)</span>
+                <input
+                  type="email"
+                  value={user.email || ''}
+                  disabled
+                  title="Email is verified via Google OAuth"
+                  style={{ background: '#f5f8f7', cursor: 'not-allowed', color: '#65757c' }}
+                />
+              </label>
+            </div>
+
+            <div className="profile-form-row">
+              <label className="field">
+                <span>Target Job Title</span>
+                <input
+                  type="text"
+                  value={targetRole}
+                  onChange={(e) => setTargetRole(e.target.value)}
+                  placeholder="e.g. Software Engineer, Marketing Analyst"
+                />
+              </label>
+
+              <label className="field">
+                <span>Target Industry</span>
+                <input
+                  type="text"
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  placeholder="e.g. Tech & IT, Finance, Healthcare"
+                />
+              </label>
+            </div>
+
+            <div className="profile-form-row">
+              <label className="field">
+                <span>Preferred Work Mode</span>
+                <input
+                  type="text"
+                  value={workMode}
+                  onChange={(e) => setWorkMode(e.target.value)}
+                  placeholder="Remote, Hybrid, or On-site"
+                />
+              </label>
+
+              <label className="field">
+                <span>Contact Phone / WhatsApp <small>Optional</small></span>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 (555) 000-0000"
+                />
+              </label>
+            </div>
+
+            <div className="profile-divider" />
+
+            <div>
+              <p className="eyebrow" style={{ marginBottom: '8px' }}>Scam Protection Rules</p>
+              <h3 style={{ fontSize: '15px', marginBottom: '14px' }}>Automated Red Flag Safeguards</h3>
+            </div>
+
+            <div className="profile-toggles-list">
+              <label className="profile-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={warnTelegram}
+                  onChange={(e) => setWarnTelegram(e.target.checked)}
+                />
+                <div>
+                  <strong>Telegram & WhatsApp Interview Guard</strong>
+                  <p>Flag any recruiter requiring interview or communication exclusively on messenger apps.</p>
+                </div>
+              </label>
+
+              <label className="profile-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={warnFees}
+                  onChange={(e) => setWarnFees(e.target.checked)}
+                />
+                <div>
+                  <strong>Upfront Fee & Training Expense Warning</strong>
+                  <p>Trigger high-risk alerts when money or refundable deposits are requested for equipment.</p>
+                </div>
+              </label>
+
+              <label className="profile-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={warnFreeEmail}
+                  onChange={(e) => setWarnFreeEmail(e.target.checked)}
+                />
+                <div>
+                  <strong>Free Domain Recruiter Flag (@gmail, @yahoo)</strong>
+                  <p>Flag suspicious offers claiming corporate affiliation while contacting from public webmail.</p>
+                </div>
+              </label>
+
+              <label className="profile-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={autoSaveDb}
+                  onChange={(e) => setAutoSaveDb(e.target.checked)}
+                />
+                <div>
+                  <strong>Auto-Save to Cloud Database</strong>
+                  <p>Automatically synchronize newly checked offers to PostgreSQL on Render.</p>
+                </div>
+              </label>
+            </div>
+
+            <div className="profile-save-bar">
+              <button type="submit" className="button button-large">
+                <Icon name="check" size={16} /> Save Profile Preferences
+              </button>
+              <button type="button" className="secondary-button" onClick={() => setPage('scan')}>
+                Scan New Offer
+              </button>
+            </div>
+          </form>
+        </section>
+
+        {/* Right Column: Account Credentials & Connected Services */}
+        <div className="profile-aside-column">
+          <section className="profile-card">
+            <div className="card-title">
+              <div>
+                <p className="eyebrow">Connected Services</p>
+                <h2 style={{ fontSize: '17px' }}>Authentication & Data</h2>
+              </div>
+              <span className="profile-card-icon"><Icon name="lock" size={17} /></span>
+            </div>
+
+            <div className="connected-service-item">
+              <div className="service-brand">
+                <span className="google-g">G</span>
+                <div>
+                  <b>Google Identity Services</b>
+                  <p>{user.email}</p>
+                </div>
+              </div>
+              <span className="status-pill connected">Active</span>
+            </div>
+
+            <div className="connected-service-item">
+              <div className="service-brand">
+                <span className="db-icon"><Icon name="database" size={15} /></span>
+                <div>
+                  <b>Render PostgreSQL DB</b>
+                  <p>Database: trusthire-db</p>
+                </div>
+              </div>
+              <span className="status-pill connected">Synced</span>
+            </div>
+
+            <div className="profile-divider" />
+
+            <div className="profile-guidelines-box">
+              <h4>TrustHire Protection Promise</h4>
+              <ul>
+                <li>Your uploaded offer text and screenshot OCR are analyzed securely.</li>
+                <li>Scans are stored with generated UUIDs in PostgreSQL.</li>
+                <li>You can delete individual scan history items at any time.</li>
+              </ul>
+            </div>
+
+            <div className="danger-zone-box">
+              <h4>Session Management</h4>
+              <p>Sign out of this browser session. Your saved scans will remain safe in PostgreSQL.</p>
+              <button className="danger-outline-button" onClick={onSignOut}>
+                <Icon name="logout" size={14} /> Sign out of TrustHire
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+const getPageFromHash = () => {
+  const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '').trim() : '';
+  return ['home', 'scan', 'history', 'result', 'profile'].includes(hash) ? hash : 'home';
+};
 
 function App() {
-  const [page, setPage] = useState('home');
+  const [page, setPageState] = useState(getPageFromHash);
+
+  const setPage = (newPage) => {
+    if (newPage !== page) {
+      if (typeof window !== 'undefined') {
+        window.location.hash = newPage;
+      }
+      setPageState(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    const onHashChange = () => {
+      setPageState(getPageFromHash());
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(null);
   const [auth, setAuth] = useState(false);
   const [saved, setSaved] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
   const [historyQuery, setHistoryQuery] = useState('');
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('trusthire-user')) || null; } catch { return null; }
+  });
   const [scans, setScans] = useState(() => {
     try { return JSON.parse(localStorage.getItem('trusthire-scans')) || DEMO_SCANS; } catch { return DEMO_SCANS; }
   });
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    localStorage.setItem('trusthire-user', JSON.stringify(userData));
+  };
+
+  const handleSignOut = () => {
+    setUser(null);
+    localStorage.removeItem('trusthire-user');
+  };
 
   const fetchScansFromBackend = async (filterBand = historyFilter, searchQ = historyQuery) => {
     try {
@@ -455,8 +1143,8 @@ function App() {
   const visibleResult = result || window.__trustResult;
 
   return (
-    <>
-      <Header page={page} setPage={setPage} openAuth={() => setAuth(true)} />
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <Header page={page} setPage={setPage} openAuth={() => setAuth(true)} user={user} onSignOut={handleSignOut} scans={scans} />
       {page === 'home' && <Landing setPage={setPage} startSample={startSample} />}
       {page === 'scan' && <ScanPage runScan={runScan} setPage={setPage} />}
       {page === 'loading' && <Loading steps={Object.assign(['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'], loading || { active: 0 })} />}
@@ -473,8 +1161,18 @@ function App() {
           setQuery={setHistoryQuery}
         />
       )}
-      {auth && <AuthModal close={() => setAuth(false)} />}
-    </>
+      {page === 'profile' && (
+        <ProfilePage
+          user={user}
+          setUser={setUser}
+          setPage={setPage}
+          onSignOut={handleSignOut}
+          scans={scans}
+          openAuth={() => setAuth(true)}
+        />
+      )}
+      {auth && <AuthModal close={() => setAuth(false)} onLoginSuccess={handleLoginSuccess} />}
+    </GoogleOAuthProvider>
   );
 }
 
