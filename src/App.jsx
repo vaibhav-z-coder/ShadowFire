@@ -6,7 +6,7 @@ import { isGeminiConfigured, verifyOfferWithGemini } from './services/geminiServ
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://trusthire-backend2-0.onrender.com';
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '1028937935165-li8g1okghv3npm8l10t27n6ugsmvss96.apps.googleusercontent.com').trim();
 
-const SAMPLE_OFFER = `Congratulations! You have been selected for a work-from-home Data Entry role at BrightPath Solutions.
+const SAMPLE_OFFER_TEXT = `Congratulations! You have been selected for a work-from-home Data Entry role at BrightPath Solutions.
 
 Salary: ₹60,000 per month. No experience required.
 To confirm your seat, pay the refundable ₹1,500 registration fee today. Our interview is only on Telegram — message @brightpath_hr within 1 hour.
@@ -14,6 +14,20 @@ To confirm your seat, pay the refundable ₹1,500 registration fee today. Our in
 Regards,
 BrightPath Hiring Team
 brightpath.hr2024@gmail.com`;
+
+const SAMPLE_OFFER_DETAILS = {
+  company: 'BrightPath Solutions',
+  role: 'Data Entry Executive',
+  salary: '₹60,000/month',
+  recruiter_email: 'brightpath.hr2024@gmail.com',
+  company_website: '',
+};
+
+const SAMPLE_OFFER = {
+  text: SAMPLE_OFFER_TEXT,
+  details: SAMPLE_OFFER_DETAILS,
+};
+
 
 const DEMO_SCANS = [
   { id: 'demo-scam', company: 'BrightPath Solutions', role: 'Data Entry Executive', salary: '₹60,000/month', recruiter_email: 'brightpath.hr2024@gmail.com', company_website: '', score: 0, band: 'high_risk', date: 'Today', redFlags: ['Upfront payment mentioned', 'Telegram-only interview', 'Missing company website'] },
@@ -300,7 +314,7 @@ function Landing({ setPage, startSample }) {
 
 function Field({ label, value, onChange, placeholder, type = 'text' }) { return <label className="field"><span>{label} <small>Optional</small></span><input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} /></label>; }
 
-function ScanPage({ runScan, setPage }) {
+function ScanPage({ runScan, setPage, scanError, onClearError }) {
   const [mode, setMode] = useState('paste');
   const [text, setText] = useState('');
   const [fieldsOpen, setFieldsOpen] = useState(false);
@@ -310,7 +324,7 @@ function ScanPage({ runScan, setPage }) {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [details, setDetails] = useState({ company: '', role: '', salary: '', recruiter_email: '', company_website: '' });
   const fileInput = useRef();
-  const canScan = text.trim().length >= 20;
+  const canScan = (text || '').trim().length >= 20;
   const setDetail = (key) => (value) => setDetails((current) => ({ ...current, [key]: value }));
 
   const onFile = async (file) => {
@@ -361,6 +375,36 @@ function ScanPage({ runScan, setPage }) {
           <h1>Is this job offer <em>worth trusting?</em></h1>
           <p className="scan-intro">Share the offer below. You can paste text or upload an offer document (PDF, WhatsApp, Telegram, or email screenshot).</p>
           
+          {scanError && (
+            <div className="scan-error-banner" role="alert">
+              <div className="scan-error-content">
+                <span className="error-badge-icon">!</span>
+                <div>
+                  <strong>Something went wrong from our side</strong>
+                  <p>{scanError}</p>
+                </div>
+              </div>
+              <div className="scan-error-actions">
+                <button
+                  type="button"
+                  className="button error-retry-btn"
+                  onClick={() => runScan(text, details)}
+                >
+                  <Icon name="history" size={13} /> Try again
+                </button>
+                {onClearError && (
+                  <button
+                    type="button"
+                    className="secondary-button error-dismiss-btn"
+                    onClick={onClearError}
+                  >
+                    Dismiss
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div style={{ marginBottom: '14px' }}>
             {isGeminiConfigured() ? (
               <span className="gemini-status-pill active">
@@ -381,10 +425,26 @@ function ScanPage({ runScan, setPage }) {
             <>
               <label className="textarea-label">
                 <span>Offer message</span>
-                <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Paste the email, WhatsApp message, or job offer here…" maxLength={10000} />
-                <small>{text.length.toLocaleString()} / 10,000 characters</small>
+                <textarea
+                  value={text}
+                  onChange={(event) => {
+                    setText(event.target.value);
+                    if (scanError && onClearError) onClearError();
+                  }}
+                  placeholder="Paste the email, WhatsApp message, or job offer here…"
+                  maxLength={10000}
+                />
+                <small>{(text || '').length.toLocaleString()} / 10,000 characters</small>
               </label>
-              <button className="sample-link" onClick={() => { setText(SAMPLE_OFFER.text); setDetails(SAMPLE_OFFER.details); }}>
+              <button
+                type="button"
+                className="sample-link"
+                onClick={() => {
+                  setText(SAMPLE_OFFER.text);
+                  setDetails(SAMPLE_OFFER.details);
+                  if (scanError && onClearError) onClearError();
+                }}
+              >
                 <span>✦</span> Or try checking a sample offer
               </button>
             </>
@@ -1197,9 +1257,11 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
   );
 }
 
+const VALID_PAGES = ['home', 'scan', 'history', 'result', 'profile'];
+
 const getPageFromHash = () => {
   const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '').trim() : '';
-  return ['home', 'scan', 'history', 'result', 'profile'].includes(hash) ? hash : 'home';
+  return VALID_PAGES.includes(hash) ? hash : 'home';
 };
 
 function App() {
@@ -1207,7 +1269,7 @@ function App() {
 
   const setPage = (newPage) => {
     if (newPage !== page) {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && newPage !== 'loading') {
         window.location.hash = newPage;
       }
       setPageState(newPage);
@@ -1224,6 +1286,7 @@ function App() {
   }, []);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(null);
+  const [scanError, setScanError] = useState(null);
   const [auth, setAuth] = useState(false);
   const [saved, setSaved] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
@@ -1285,6 +1348,7 @@ function App() {
   }, [scans]);
 
   const runScan = async (text, overrides = {}) => {
+    setScanError(null);
     setPage('loading');
     setLoading({ active: 0 });
     const steps = [
@@ -1297,102 +1361,68 @@ function App() {
       setTimeout(() => setLoading({ active: index }), delay)
     );
 
-    let finalResult = null;
+    try {
+      // Always run Gemini AI Verification
+      const geminiOutput = await verifyOfferWithGemini(text, overrides);
 
-    // 1. Try Gemini AI Verification with Google Search Grounding if configured
-    if (isGeminiConfigured()) {
-      try {
-        console.log('Running Gemini AI Verification with genuine source search...');
-        const geminiOutput = await verifyOfferWithGemini(text, overrides);
-        finalResult = {
-          id: crypto.randomUUID?.() || 'gemini-' + Date.now(),
-          score: geminiOutput.score,
-          band: geminiOutput.band,
-          confidence: geminiOutput.confidence || 'High',
-          aiSummary: geminiOutput.aiSummary || '',
-          genuineSources: geminiOutput.genuineSources || [],
-          redFlags: geminiOutput.redFlags || [],
-          positives: geminiOutput.positives || [],
-          recommendations: geminiOutput.recommendations || [],
-          details: {
-            ...geminiOutput.details,
-            ...overrides,
-          },
-          text,
-          verifiedBy: 'Gemini AI & Live Grounding',
-          createdAt: new Date().toISOString(),
-        };
-      } catch (geminiErr) {
-        console.warn('Gemini verification error, falling back to heuristic evaluation:', geminiErr);
-      }
-    }
+      const finalResult = {
+        id: crypto.randomUUID?.() || 'gemini-' + Date.now(),
+        score: geminiOutput.score,
+        band: geminiOutput.band,
+        confidence: geminiOutput.confidence || 'High',
+        aiSummary: geminiOutput.aiSummary || '',
+        genuineSources: geminiOutput.genuineSources || [],
+        redFlags: geminiOutput.redFlags || [],
+        positives: geminiOutput.positives || [],
+        recommendations: geminiOutput.recommendations || [],
+        details: {
+          ...geminiOutput.details,
+          ...overrides,
+        },
+        text,
+        verifiedBy: 'Gemini AI & Live Grounding',
+        createdAt: new Date().toISOString(),
+      };
 
-    // 2. If Gemini was not run or failed, check via Backend
-    if (!finalResult) {
+      // Persist to backend asynchronously to save in cloud DB if reachable
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/scans`, {
+        fetch(`${API_BASE_URL}/api/v1/scans`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, details: overrides }),
-        });
+          body: JSON.stringify({
+            text,
+            details: finalResult.details,
+          }),
+        }).catch(() => {});
+      } catch {}
 
-        if (res.ok) {
-          const backendResult = await res.json();
-          finalResult = {
-            ...backendResult,
-            details: backendResult.details || overrides,
-            verifiedBy: 'Standard Heuristic Engine',
-          };
-        }
-      } catch (err) {
-        console.warn('Backend request failed, evaluating locally:', err);
-      }
+      setTimeout(() => {
+        setResult(finalResult);
+        setSaved(true);
+        setPage('result');
+        const record = {
+          id: finalResult.id,
+          company: finalResult.details?.company || 'Unknown company',
+          role: finalResult.details?.role || 'Role not provided',
+          salary: finalResult.details?.salary || '',
+          score: finalResult.score,
+          band: finalResult.band,
+          date: 'Just now',
+          redFlags: (finalResult.redFlags || []).map((flag) =>
+            typeof flag === 'string' ? flag : flag.name
+          ),
+          result: finalResult,
+        };
+        setScans((current) => [record, ...current.filter((s) => s.id !== record.id)]);
+      }, 1600);
+    } catch (err) {
+      console.error('Gemini verification error:', err);
+      setLoading(null);
+      setScanError(
+        'Something went wrong from our side while analyzing this offer. Please try again in a moment.'
+      );
+      setPage('scan');
     }
-
-    // 3. Client heuristic evaluation fallback
-    if (!finalResult) {
-      const details = extractDetails(text, overrides);
-      const analysis = analyseOffer(text, details);
-      finalResult = {
-        ...analysis,
-        details,
-        text,
-        id: crypto.randomUUID?.() || String(Date.now()),
-        verifiedBy: 'Standard Heuristic Engine',
-      };
-    }
-
-    // Persist to backend asynchronously to save in cloud DB if reachable
-    try {
-      fetch(`${API_BASE_URL}/api/v1/scans`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          details: finalResult.details,
-        }),
-      }).catch(() => {});
-    } catch {}
-
-    setTimeout(() => {
-      setResult(finalResult);
-      setSaved(true);
-      setPage('result');
-      const record = {
-        id: finalResult.id,
-        company: finalResult.details?.company || 'Unknown company',
-        role: finalResult.details?.role || 'Role not provided',
-        salary: finalResult.details?.salary || '',
-        score: finalResult.score,
-        band: finalResult.band,
-        date: 'Just now',
-        redFlags: (finalResult.redFlags || []).map((flag) =>
-          typeof flag === 'string' ? flag : flag.name
-        ),
-        result: finalResult,
-      };
-      setScans((current) => [record, ...current.filter((s) => s.id !== record.id)]);
-    }, 1800);
   };
 
   const recheck = (details) => {
@@ -1426,14 +1456,21 @@ function App() {
     setScans((current) => current.filter((scan) => scan.id !== id));
   };
 
-  const startSample = () => runScan(SAMPLE_OFFER);
+  const startSample = () => runScan(SAMPLE_OFFER.text, SAMPLE_OFFER.details);
   const visibleResult = result || window.__trustResult;
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <Header page={page} setPage={setPage} openAuth={() => setAuth(true)} user={user} onSignOut={handleSignOut} scans={scans} />
       {page === 'home' && <Landing setPage={setPage} startSample={startSample} />}
-      {page === 'scan' && <ScanPage runScan={runScan} setPage={setPage} />}
+      {page === 'scan' && (
+        <ScanPage
+          runScan={runScan}
+          setPage={setPage}
+          scanError={scanError}
+          onClearError={() => setScanError(null)}
+        />
+      )}
       {page === 'loading' && <Loading steps={Object.assign(['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'], loading || { active: 0 })} />}
       {page === 'result' && visibleResult && <ResultPage result={visibleResult} setPage={setPage} recheck={recheck} saveScan={saveScan} saved={saved} openAuth={() => setAuth(true)} />}
       {page === 'history' && (

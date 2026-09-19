@@ -5,13 +5,17 @@
  */
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-2.5-flash-lite'];
 
 /**
  * Checks if the Gemini API key is configured.
  */
 export function isGeminiConfigured() {
-  return Boolean(GEMINI_API_KEY && GEMINI_API_KEY.trim().length > 10 && !GEMINI_API_KEY.includes('your_gemini_api_key'));
+  return Boolean(
+    GEMINI_API_KEY &&
+    GEMINI_API_KEY.trim().length > 10 &&
+    !GEMINI_API_KEY.includes('your_gemini_api_key')
+  );
 }
 
 /**
@@ -22,7 +26,7 @@ export function isGeminiConfigured() {
  */
 export async function verifyOfferWithGemini(offerText, overrides = {}) {
   if (!isGeminiConfigured()) {
-    throw new Error('Gemini API key is not configured. Please add VITE_GEMINI_API_KEY in your .env file.');
+    throw new Error('Something went wrong from our side. Verification service is currently unavailable.');
   }
 
   const prompt = `
@@ -44,7 +48,7 @@ VERIFICATION INSTRUCTIONS:
 1. FACT-CHECK THE COMPANY:
    - Identify the real company named in the offer.
    - Determine its genuine official website domain and official careers portal.
-   - Compare the recruiter's email domain against the genuine company domain (flag if using free email like @gmail.com, @yahoo.com, or spoofed lookalike domains like @google-recruitment.com).
+   - Compare the recruiter's email domain against the genuine company domain (flag if using free email like @gmail.com, @yahoo.com, or spoofed lookalike domains).
 
 2. SCAM PATTERN DETECTION:
    - Upfront payment, training fees, security deposits, or kit charges (IMMEDIATE CRITICAL RED FLAG).
@@ -105,24 +109,31 @@ Respond with ONLY valid JSON (no markdown formatting, no code blocks, no backtic
     "salary": "Detected Salary",
     "recruiter_email": "Detected Recruiter Email",
     "company_website": "Genuine Official Website URL",
-    "interview_channel": "Detected Interview Channel (e.g. Telegram, Email, In-person)"
+    "interview_channel": "Detected Interview Channel"
   }
 }
 `;
 
-  // Attempt 1: With Google Search Grounding if supported
-  try {
-    const result = await callGeminiApi(prompt, true);
-    return result;
-  } catch (err) {
-    console.warn('Gemini call with search grounding failed or unsupported, retrying direct reasoning:', err.message);
-    // Attempt 2: Fallback without tools to ensure 100% reliability
-    return await callGeminiApi(prompt, false);
+  let lastError = null;
+
+  // Try each supported model
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const result = await callGeminiApi(modelName, prompt, false);
+      if (result && typeof result.score === 'number') {
+        return result;
+      }
+    } catch (err) {
+      console.warn(`Gemini attempt with ${modelName} failed:`, err.message);
+      lastError = err;
+    }
   }
+
+  throw new Error('Something went wrong from our side while analyzing this offer. Please try again in a moment.');
 }
 
-async function callGeminiApi(prompt, withSearch = false) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY.trim()}`;
+async function callGeminiApi(modelName, prompt, withSearch = false) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY.trim()}`;
 
   const requestBody = {
     contents: [
