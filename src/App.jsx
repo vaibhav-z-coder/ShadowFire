@@ -316,17 +316,15 @@ function ScanPage({ runScan, setPage }) {
     if (!file) return;
     setFileName(file.name);
     setMode('upload');
-    const previewUrl = URL.createObjectURL(file);
-    setImagePreview(previewUrl);
     setOcrLoading(true);
-    setOcrStatus('Initializing OCR engine...');
+    setOcrStatus('Scanning screenshot image...');
 
     try {
       const res = await Tesseract.recognize(file, 'eng', {
         logger: (m) => {
           if (m.status === 'recognizing text') {
             const pct = Math.round((m.progress || 0) * 100);
-            setOcrStatus(`Scanning image text... ${pct}%`);
+            setOcrStatus(`Reading image text... ${pct}%`);
           } else if (m.status) {
             setOcrStatus(`${m.status.charAt(0).toUpperCase() + m.status.slice(1)}...`);
           }
@@ -349,7 +347,7 @@ function ScanPage({ runScan, setPage }) {
         setOcrStatus('Could not find clear text in image. You can paste or type below.');
       }
     } catch (err) {
-      console.error('OCR Error:', err);
+      console.error('Text extraction error:', err);
       setOcrStatus('Failed to scan image. Please paste the offer text manually below.');
     } finally {
       setOcrLoading(false);
@@ -370,7 +368,7 @@ function ScanPage({ runScan, setPage }) {
           <p className="scan-intro">Share the offer below. You can paste text or upload an offer screenshot (WhatsApp, Telegram, email).</p>
           <div className="tabs" role="tablist">
             <button role="tab" aria-selected={mode === 'paste'} className={mode === 'paste' ? 'selected' : ''} onClick={() => setMode('paste')}>Paste offer text</button>
-            <button role="tab" aria-selected={mode === 'upload'} className={mode === 'upload' ? 'selected' : ''} onClick={() => setMode('upload')}>Upload screenshot (OCR)</button>
+            <button role="tab" aria-selected={mode === 'upload'} className={mode === 'upload' ? 'selected' : ''} onClick={() => setMode('upload')}>Upload screenshot</button>
           </div>
           {mode === 'paste' ? (
             <>
@@ -379,51 +377,49 @@ function ScanPage({ runScan, setPage }) {
                 <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Paste the email, WhatsApp message, or job offer here…" maxLength={10000} />
                 <small>{text.length.toLocaleString()} / 10,000 characters</small>
               </label>
-              <button className="sample-link" onClick={() => setText(SAMPLE_OFFER)}>
-                <Icon name="spark" size={15} /> Use a sample suspicious offer
+              <button className="sample-link" onClick={() => { setText(SAMPLE_OFFER.text); setDetails(SAMPLE_OFFER.details); }}>
+                <span>✦</span> Or try checking a sample offer
               </button>
             </>
           ) : (
-            <>
-              <button className="dropzone" onClick={() => fileInput.current?.click()} onDrop={(event) => { event.preventDefault(); onFile(event.dataTransfer.files[0]); }} onDragOver={(event) => event.preventDefault()}>
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Screenshot preview" style={{ maxHeight: '110px', maxWidth: '240px', borderRadius: '8px', marginBottom: '8px', objectFit: 'contain' }} />
-                ) : (
-                  <span className="upload-icon"><Icon name="upload" /></span>
-                )}
-                <b>{fileName || 'Drop your screenshot here'}</b>
-                <p>{fileName ? 'Click or drop another image to re-scan' : 'or click to browse · PNG or JPG · scans text automatically'}</p>
+            <div className="dropzone-wrap">
+              <input ref={fileInput} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onFile(e.target.files?.[0])} />
+              <div className="dropzone" onClick={() => fileInput.current?.click()}>
+                <span className="upload-icon"><Icon name="upload" /></span>
+                <b>{fileName ? fileName : 'Choose an offer screenshot'}</b>
+                <p>Drag and drop or click to upload (PNG, JPG, WebP)</p>
                 {ocrStatus && (
                   <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: ocrLoading ? '#fff8e7' : '#e6f7ed', color: ocrLoading ? '#996312' : '#1e754a', padding: '5px 12px', borderRadius: '15px', fontSize: '11px', fontWeight: '700' }}>
                     {ocrLoading && <span className="pulse-dot" style={{ margin: 0 }} />}
                     {ocrStatus}
                   </div>
                 )}
-              </button>
-              <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => onFile(event.target.files[0])} />
-              <label className="textarea-label extracted-text">
-                <span>Extracted offer text <small>{ocrLoading ? 'Scanning in progress...' : 'Editable'}</small></span>
-                <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Recognized screenshot text will appear here automatically, or you can paste text..." />
-              </label>
-            </>
+              </div>
+              {text && (
+                <label className="textarea-label extracted-text">
+                  <span>Extracted offer text <small>{ocrLoading ? 'Scanning in progress...' : 'Editable'}</small></span>
+                  <textarea value={text} onChange={(event) => setText(event.target.value)} />
+                </label>
+              )}
+            </div>
           )}
-          <button className="details-toggle" onClick={() => setFieldsOpen(!fieldsOpen)} aria-expanded={fieldsOpen}>
-            <span><Icon name="spark" size={17} /> Add details for a sharper check <small>Optional</small></span>
-            <Icon name="chevron" size={17} />
+          <button className="details-toggle" aria-expanded={fieldsOpen} onClick={() => setFieldsOpen((open) => !open)}>
+            <span><Icon name="spark" size={15} /> Add job details <small>Optional</small></span>
+            <Icon name="chevron" size={16} />
           </button>
           {fieldsOpen && (
             <div className="detail-fields">
-              <Field label="Company" value={details.company} onChange={setDetail('company')} placeholder="e.g. Northstar Labs" />
-              <Field label="Role" value={details.role} onChange={setDetail('role')} placeholder="e.g. Product Designer" />
-              <Field label="Salary" value={details.salary} onChange={setDetail('salary')} placeholder="e.g. ₹8 LPA" />
-              <Field label="Recruiter email" type="email" value={details.recruiter_email} onChange={setDetail('recruiter_email')} placeholder="name@company.com" />
+              <Field label="Company name" value={details.company} onChange={setDetail('company')} placeholder="Acme Corp" />
+              <Field label="Job role" value={details.role} onChange={setDetail('role')} placeholder="Remote Operations Assistant" />
+              <Field label="Salary / compensation" value={details.salary} onChange={setDetail('salary')} placeholder="$35/hour or $75,000/year" />
+              <Field label="Recruiter email" value={details.recruiter_email} onChange={setDetail('recruiter_email')} placeholder="recruiter@company.com" type="email" />
               <Field label="Company website" value={details.company_website} onChange={setDetail('company_website')} placeholder="company.com" />
             </div>
           )}
           <button className="button button-large scan-button" disabled={!canScan || ocrLoading} onClick={() => runScan(text, details)}>
             <Icon name="scan" /> Check this offer <Icon name="arrow" />
           </button>
-          <p className="privacy-note"><Icon name="lock" size={14} /> Scans are processed securely with PostgreSQL history on Render.</p>
+          <p className="privacy-note"><Icon name="lock" size={14} /> Scans are processed privately and protected by TrustHire.</p>
         </section>
         <aside className="scan-aside">
           <div className="aside-card">
@@ -457,7 +453,7 @@ function DetailItem({ label, value, edit, onChange }) { return <div className="d
 
 function History({ scans, setPage, deleteScan, openAuth, filter, setFilter, query, setQuery }) {
   const items = useMemo(() => scans.filter((scan) => (filter === 'all' || scan.band === filter) && `${scan.company} ${scan.role}`.toLowerCase().includes(query.toLowerCase())), [scans, filter, query]);
-  return <main className="history-page"><div className="crumb"><button onClick={() => setPage('home')}>Home</button><span>/</span><strong>History</strong></div><div className="history-heading"><div><p className="eyebrow">Your scans</p><h1>Keep track of every <em>offer you checked.</em></h1><p>Scans are backed by PostgreSQL on your live backend.</p></div><button className="button" onClick={() => setPage('scan')}><Icon name="scan" size={17} /> New scan</button></div><div className="history-toolbar"><label><span className="search-symbol">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company or role" /></label><div className="filter-pills">{[['all', 'All scans'], ['high_risk', 'High risk'], ['suspicious', 'Suspicious'], ['likely_legit', 'Likely legit']].map(([value, label]) => <button className={filter === value ? 'selected' : ''} key={value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>{items.length ? <div className="history-table"><div className="history-row history-labels"><span>Company & role</span><span>Assessment</span><span>Checked</span><span aria-hidden="true" /></div>{items.map((scan) => <article className="history-row" key={scan.id}><div className="company-cell"><span className={`company-icon ${scan.band}`}>{scan.company ? scan.company.slice(0, 1) : 'O'}</span><div><b>{scan.company}</b><p>{scan.role}</p></div></div><div className="score-cell"><strong>{scan.score}</strong><BandBadge band={scan.band} compact /></div><span className="date-cell">{scan.date}</span><div className="row-actions"><button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button><button className="delete-button" aria-label={`Delete ${scan.company} scan`} onClick={() => deleteScan(scan.id)}><Icon name="trash" size={17} /></button></div></article>)}</div> : <div className="history-empty"><span><Icon name="history" size={24} /></span><h2>No matching scans yet</h2><p>Try a different filter or check a new job offer.</p><button className="button" onClick={() => setPage('scan')}>Check an offer</button></div>}<section className="history-signin"><Icon name="lock" size={19} /><div><b>Synced with Render PostgreSQL</b><p>All scanned jobs are securely persisted in your production database.</p></div><button className="secondary-button" onClick={openAuth}>Database status: Active</button></section></main>;
+  return <main className="history-page"><div className="crumb"><button onClick={() => setPage('home')}>Home</button><span>/</span><strong>History</strong></div><div className="history-heading"><div><p className="eyebrow">Your scans</p><h1>Keep track of every <em>offer you checked.</em></h1><p>All your verified evaluations, organized in one safe place.</p></div><button className="button" onClick={() => setPage('scan')}><Icon name="scan" size={17} /> New scan</button></div><div className="history-toolbar"><label><span className="search-symbol">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company or role" /></label><div className="filter-pills">{[['all', 'All scans'], ['high_risk', 'High risk'], ['suspicious', 'Suspicious'], ['likely_legit', 'Likely legit']].map(([value, label]) => <button className={filter === value ? 'selected' : ''} key={value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>{items.length ? <div className="history-table"><div className="history-row history-labels"><span>Company & role</span><span>Assessment</span><span>Checked</span><span aria-hidden="true" /></div>{items.map((scan) => <article className="history-row" key={scan.id}><div className="company-cell"><span className={`company-icon ${scan.band}`}>{scan.company ? scan.company.slice(0, 1) : 'O'}</span><div><b>{scan.company}</b><p>{scan.role}</p></div></div><div className="score-cell"><strong>{scan.score}</strong><BandBadge band={scan.band} compact /></div><span className="date-cell">{scan.date}</span><div className="row-actions"><button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button><button className="delete-button" aria-label={`Delete ${scan.company} scan`} onClick={() => deleteScan(scan.id)}><Icon name="trash" size={17} /></button></div></article>)}</div> : <div className="history-empty"><span><Icon name="history" size={24} /></span><h2>No matching scans yet</h2><p>Try a different filter or check a new job offer.</p><button className="button" onClick={() => setPage('scan')}>Check an offer</button></div>}<section className="history-signin"><Icon name="lock" size={19} /><div><b>Encrypted Cloud Sync</b><p>All your checked job offers are safely backed up to your account.</p></div><button className="secondary-button" onClick={openAuth}>Status: Protected</button></section></main>;
 }
 
 function AuthModal({ close, onLoginSuccess }) {
@@ -530,7 +526,7 @@ function AuthModal({ close, onLoginSuccess }) {
         onLoginSuccess(userData);
         close();
       } else {
-        setAuthError('Server could not save user to PostgreSQL.');
+        setAuthError('Could not sign in. Please try again.');
       }
     } catch (err) {
       console.error('Email sign in error:', err);
@@ -580,14 +576,14 @@ function AuthModal({ close, onLoginSuccess }) {
             <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="you@gmail.com" required />
           </label>
           <button type="submit" className="button full-button" disabled={authLoading}>
-            {authLoading ? 'Saving to Database...' : 'Sign in & Save to Database'}
+            {authLoading ? 'Signing in...' : 'Sign in with Email'}
           </button>
         </form>
 
-        {authLoading && <p style={{ fontSize: '11px', color: '#1f7a51', textAlign: 'center', marginTop: '12px' }}>Saving user profile to database...</p>}
+        {authLoading && <p style={{ fontSize: '11px', color: '#1f7a51', textAlign: 'center', marginTop: '12px' }}>Connecting to your account...</p>}
         {authError && <p style={{ fontSize: '11px', color: '#c74c44', textAlign: 'center', marginTop: '12px', background: '#fff0ed', padding: '8px', borderRadius: '6px' }}>{authError}</p>}
 
-        <small style={{ marginTop: '16px' }}>Your authentication details will be securely saved to your PostgreSQL database on Render.</small>
+        <small style={{ marginTop: '16px' }}>Your personal job checks and history are always private and protected.</small>
       </section>
     </div>
   );
@@ -694,7 +690,7 @@ function ProfilePage({ user, setUser, setPage, onSignOut, scans = [], openAuth }
                 {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
             )}
-            <span className="profile-active-badge" title="Active on PostgreSQL" />
+            <span className="profile-active-badge" title="Active Account" />
           </div>
 
           <div className="profile-hero-details">
