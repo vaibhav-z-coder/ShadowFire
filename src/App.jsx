@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Tesseract from 'tesseract.js';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { extractTextFromFile } from './utils/fileExtractor';
+import { isGeminiConfigured, verifyOfferWithGemini } from './services/geminiService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://trusthire-backend2-0.onrender.com';
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '1028937935165-li8g1okghv3npm8l10t27n6ugsmvss96.apps.googleusercontent.com').trim();
@@ -317,24 +318,17 @@ function ScanPage({ runScan, setPage }) {
     setFileName(file.name);
     setMode('upload');
     setOcrLoading(true);
-    setOcrStatus('Scanning screenshot image...');
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    setOcrStatus(isPdf ? 'Extracting text from PDF...' : 'Scanning screenshot image...');
 
     try {
-      const res = await Tesseract.recognize(file, 'eng', {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            const pct = Math.round((m.progress || 0) * 100);
-            setOcrStatus(`Reading image text... ${pct}%`);
-          } else if (m.status) {
-            setOcrStatus(`${m.status.charAt(0).toUpperCase() + m.status.slice(1)}...`);
-          }
-        },
+      const { text: extracted } = await extractTextFromFile(file, (status) => {
+        setOcrStatus(status);
       });
 
-      const extracted = (res.data?.text || '').trim();
-      if (extracted.length > 0) {
+      if (extracted && extracted.length > 0) {
         setText(extracted);
-        setOcrStatus('Text extracted successfully!');
+        setOcrStatus(isPdf ? 'PDF text extracted successfully!' : 'Image text extracted successfully!');
         const autoDetails = extractDetails(extracted);
         setDetails((prev) => ({
           company: autoDetails.company !== 'Unknown company' ? autoDetails.company : prev.company,
@@ -344,11 +338,11 @@ function ScanPage({ runScan, setPage }) {
           company_website: autoDetails.company_website || prev.company_website,
         }));
       } else {
-        setOcrStatus('Could not find clear text in image. You can paste or type below.');
+        setOcrStatus(`Could not find readable text in ${isPdf ? 'PDF' : 'image'}. You can paste or type below.`);
       }
     } catch (err) {
-      console.error('Text extraction error:', err);
-      setOcrStatus('Failed to scan image. Please paste the offer text manually below.');
+      console.error('File extraction error:', err);
+      setOcrStatus('Failed to scan file. Please paste the offer text manually below.');
     } finally {
       setOcrLoading(false);
     }
@@ -365,10 +359,23 @@ function ScanPage({ runScan, setPage }) {
         <section className="scan-main">
           <p className="eyebrow">New offer scan</p>
           <h1>Is this job offer <em>worth trusting?</em></h1>
-          <p className="scan-intro">Share the offer below. You can paste text or upload an offer screenshot (WhatsApp, Telegram, email).</p>
+          <p className="scan-intro">Share the offer below. You can paste text or upload an offer document (PDF, WhatsApp, Telegram, or email screenshot).</p>
+          
+          <div style={{ marginBottom: '14px' }}>
+            {isGeminiConfigured() ? (
+              <span className="gemini-status-pill active">
+                <Icon name="spark" size={13} /> Gemini AI & Live Grounding: Active
+              </span>
+            ) : (
+              <span className="gemini-status-pill inactive" title="Add VITE_GEMINI_API_KEY to your .env file to enable live AI verification">
+                <Icon name="shield" size={13} /> Heuristic Scanner (Add Gemini key in .env for live AI search)
+              </span>
+            )}
+          </div>
+
           <div className="tabs" role="tablist">
             <button role="tab" aria-selected={mode === 'paste'} className={mode === 'paste' ? 'selected' : ''} onClick={() => setMode('paste')}>Paste offer text</button>
-            <button role="tab" aria-selected={mode === 'upload'} className={mode === 'upload' ? 'selected' : ''} onClick={() => setMode('upload')}>Upload screenshot</button>
+            <button role="tab" aria-selected={mode === 'upload'} className={mode === 'upload' ? 'selected' : ''} onClick={() => setMode('upload')}>Upload document / screenshot</button>
           </div>
           {mode === 'paste' ? (
             <>
@@ -383,11 +390,11 @@ function ScanPage({ runScan, setPage }) {
             </>
           ) : (
             <div className="dropzone-wrap">
-              <input ref={fileInput} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onFile(e.target.files?.[0])} />
+              <input ref={fileInput} type="file" accept="image/*,.pdf,application/pdf" style={{ display: 'none' }} onChange={(e) => onFile(e.target.files?.[0])} />
               <div className="dropzone" onClick={() => fileInput.current?.click()}>
                 <span className="upload-icon"><Icon name="upload" /></span>
-                <b>{fileName ? fileName : 'Choose an offer screenshot'}</b>
-                <p>Drag and drop or click to upload (PNG, JPG, WebP)</p>
+                <b>{fileName ? fileName : 'Choose an offer document or screenshot'}</b>
+                <p>Drag and drop or click to upload (PDF, PNG, JPG, WebP)</p>
                 {ocrStatus && (
                   <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: ocrLoading ? '#fff8e7' : '#e6f7ed', color: ocrLoading ? '#996312' : '#1e754a', padding: '5px 12px', borderRadius: '15px', fontSize: '11px', fontWeight: '700' }}>
                     {ocrLoading && <span className="pulse-dot" style={{ margin: 0 }} />}
@@ -444,9 +451,228 @@ function Loading({ steps }) { return <main className="loading-page"><div classNa
 function ScoreGauge({ score, band }) { const [shown, setShown] = useState(0); useEffect(() => { let start; const run = (time) => { if (!start) start = time; const next = Math.min(score, Math.round((time - start) / 950 * score)); setShown(next); if (next < score) requestAnimationFrame(run); }; const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); }, [score]); const radius = 105; const length = Math.PI * radius; const offset = length - (score / 100) * length; return <div className={`gauge ${band}`} role="img" aria-label={`Trust score ${score} out of 100, ${bandMeta(band).label}`}><svg viewBox="0 0 260 145"><path className="gauge-track" d="M25 130a105 105 0 0 1 210 0" pathLength="100" /><path className="gauge-value" d="M25 130a105 105 0 0 1 210 0" pathLength="100" style={{ strokeDasharray: '100', strokeDashoffset: 100 - score }} /></svg><div className="gauge-score"><strong>{shown}</strong><span>/100</span></div></div>; }
 
 function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth }) {
-  const [editing, setEditing] = useState(false); const [details, setDetails] = useState(result.details); const [openFlag, setOpenFlag] = useState(null);
-  const meta = bandMeta(result.band); const setDetail = (key) => (value) => setDetails((current) => ({ ...current, [key]: value }));
-  return <main className="result-page"><div className="crumb"><button onClick={() => setPage('scan')}>New scan</button><span>/</span><strong>Results</strong></div><div className="result-hero"><div><p className="eyebrow">Offer assessment</p><h1>Here’s what we found.</h1><p>We checked the offer for common risk signals. Use these details alongside your own research.</p></div><div className="result-actions"><button className="secondary-button" onClick={() => setPage('scan')}>Check another</button><button className="button" onClick={saved ? () => setPage('history') : saveScan}>{saved ? <><Icon name="check" size={17} /> Saved to history</> : 'Save this scan'}</button></div></div><section className={`score-panel ${result.band}`}><div className="score-copy"><BandBadge band={result.band} /><h2>{meta.description}</h2><p>{result.redFlags.length ? `${result.redFlags.length} warning signal${result.redFlags.length > 1 ? 's' : ''} need your attention.` : 'No major warning signals were found in the information shared.'}</p><div className="confidence">Assessment confidence <b>{result.confidence}</b></div></div><ScoreGauge score={result.score} band={result.band} /></section><section className="result-grid"><div className="result-column"><section className="content-card"><div className="card-title"><div><p className="eyebrow">Signals to review</p><h2>{result.redFlags.length ? 'Things to pause on' : 'No strong red flags found'}</h2></div><span className={`count-pill ${result.redFlags.length ? 'danger' : 'positive'}`}>{result.redFlags.length}</span></div>{result.redFlags.length ? <div className="flag-list">{result.redFlags.map((flag) => <button className={`flag-item ${openFlag === flag.id ? 'open' : ''}`} key={flag.id} onClick={() => setOpenFlag(openFlag === flag.id ? null : flag.id)}><span className="flag-symbol">!</span><span className="flag-content"><b>{flag.name}</b><span>{flag.why}</span>{openFlag === flag.id && <em>Evidence: {flag.evidence}</em>}</span><Icon name="chevron" size={17} /></button>)}</div> : <div className="empty-signals"><span><Icon name="check" /></span><p>The contact details and message did not trigger major warning signals in this demo.</p></div>}</section>{result.positives.length > 0 && <section className="content-card positive-card"><div className="card-title"><div><p className="eyebrow">Positive signals</p><h2>What looks reassuring</h2></div></div>{result.positives.map((signal) => <div className="positive-row" key={signal.id}><span><Icon name="check" size={15} /></span><div><b>{signal.name}</b><p>{signal.evidence}</p></div></div>)}</section>}<section className="content-card next-card"><p className="eyebrow">What to do next</p><h2>{result.band === 'high_risk' ? 'Pause before you respond.' : 'Verify independently before you decide.'}</h2><ol>{result.band === 'high_risk' ? <><li>Do not send money, ID documents, or bank details.</li><li>Find the company’s official website yourself and use its published contact details.</li><li>Tell someone you trust if you feel pressured to act quickly.</li></> : <><li>Visit the company’s official careers page rather than using a link in the message.</li><li>Confirm the role with an official company contact.</li><li>Keep screenshots and avoid sharing sensitive documents too early.</li></>}</ol></section></div><aside className="result-aside"><section className="content-card details-card"><div className="card-title"><div><p className="eyebrow">Extracted details</p><h2>Offer information</h2></div><button className="edit-button" onClick={() => editing ? recheck(details) : setEditing(true)}>{editing ? 'Re-check' : 'Edit'}</button></div><div className="details-list"><DetailItem label="Company" value={details.company} edit={editing} onChange={setDetail('company')} /><DetailItem label="Role" value={details.role} edit={editing} onChange={setDetail('role')} /><DetailItem label="Salary" value={details.salary || 'Not stated'} edit={editing} onChange={setDetail('salary')} /><DetailItem label="Recruiter email" value={details.recruiter_email || 'Not found'} edit={editing} onChange={setDetail('recruiter_email')} /><DetailItem label="Website" value={details.company_website || 'Not found'} edit={editing} onChange={setDetail('company_website')} /><DetailItem label="Interview channel" value={details.interview_channel} /></div>{editing && <button className="cancel-edit" onClick={() => { setDetails(result.details); setEditing(false); }}>Cancel editing</button>}</section><section className="guest-card"><span><Icon name="lock" size={17} /></span><div><b>Keep this result handy</b><p>Sign in to save scans and compare offers later.</p><button onClick={openAuth}>Sign in to save</button></div></section></aside></section><p className="result-disclaimer"><Icon name="shield" size={14} /> TrustHire gives guidance, not a guarantee. Verify with the company directly.</p></main>;
+  const [editing, setEditing] = useState(false);
+  const [details, setDetails] = useState(result.details || {});
+  const [openFlag, setOpenFlag] = useState(null);
+  const meta = bandMeta(result.band);
+  const setDetail = (key) => (value) => setDetails((current) => ({ ...current, [key]: value }));
+
+  const redFlags = result.redFlags || [];
+  const positives = result.positives || [];
+  const genuineSources = result.genuineSources || [];
+
+  return (
+    <main className="result-page">
+      <div className="crumb">
+        <button onClick={() => setPage('scan')}>New scan</button>
+        <span>/</span>
+        <strong>Results</strong>
+      </div>
+      <div className="result-hero">
+        <div>
+          <p className="eyebrow">Offer assessment</p>
+          <h1>Here’s what we found.</h1>
+          <p>We checked the offer for common risk signals. Use these details alongside your own research.</p>
+        </div>
+        <div className="result-actions">
+          <button className="secondary-button" onClick={() => setPage('scan')}>Check another</button>
+          <button className="button" onClick={saved ? () => setPage('history') : saveScan}>
+            {saved ? <><Icon name="check" size={17} /> Saved to history</> : 'Save this scan'}
+          </button>
+        </div>
+      </div>
+
+      <section className={`score-panel ${result.band}`}>
+        <div className="score-copy">
+          <BandBadge band={result.band} />
+          <h2>{meta.description}</h2>
+          <p>
+            {redFlags.length
+              ? `${redFlags.length} warning signal${redFlags.length > 1 ? 's' : ''} need your attention.`
+              : 'No major warning signals were found in the information shared.'}
+          </p>
+          <div className="confidence">Assessment confidence <b>{result.confidence || 'High'}</b></div>
+          {result.verifiedBy && (
+            <div className="verified-engine-tag">
+              <Icon name="shield" size={12} /> {result.verifiedBy}
+            </div>
+          )}
+        </div>
+        <ScoreGauge score={result.score} band={result.band} />
+      </section>
+
+      <section className="result-grid">
+        <div className="result-column">
+          {/* AI Executive Summary */}
+          {result.aiSummary && (
+            <section className="content-card ai-summary-card">
+              <h3><Icon name="spark" size={15} /> Verified Assessment Summary</h3>
+              <p>{result.aiSummary}</p>
+            </section>
+          )}
+
+          {/* Warning Signals */}
+          <section className="content-card">
+            <div className="card-title">
+              <div>
+                <p className="eyebrow">Signals to review</p>
+                <h2>{redFlags.length ? 'Things to pause on' : 'No strong red flags found'}</h2>
+              </div>
+              <span className={`count-pill ${redFlags.length ? 'danger' : 'positive'}`}>{redFlags.length}</span>
+            </div>
+            {redFlags.length ? (
+              <div className="flag-list">
+                {redFlags.map((flag, idx) => {
+                  const flagId = flag.id || `rf-${idx}`;
+                  const flagName = typeof flag === 'string' ? flag : flag.name;
+                  const flagWhy = flag.why || 'This signal commonly appears in fraudulent recruiting attempts.';
+                  const flagEvidence = flag.evidence || '';
+                  return (
+                    <button
+                      className={`flag-item ${openFlag === flagId ? 'open' : ''}`}
+                      key={flagId}
+                      onClick={() => setOpenFlag(openFlag === flagId ? null : flagId)}
+                    >
+                      <span className="flag-symbol">!</span>
+                      <span className="flag-content">
+                        <b>{flagName}</b>
+                        <span>{flagWhy}</span>
+                        {openFlag === flagId && flagEvidence && <em>Evidence: {flagEvidence}</em>}
+                      </span>
+                      <Icon name="chevron" size={17} />
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-signals">
+                <span><Icon name="check" /></span>
+                <p>The contact details and message did not trigger major warning signals in this check.</p>
+              </div>
+            )}
+          </section>
+
+          {/* Genuine Corporate Sources */}
+          {genuineSources.length > 0 && (
+            <section className="content-card genuine-sources-card">
+              <div className="card-title">
+                <div>
+                  <p className="eyebrow">Corporate Verification</p>
+                  <h2>Genuine Places & Official Channels</h2>
+                </div>
+                <span className="count-pill positive">{genuineSources.length}</span>
+              </div>
+              <p className="sources-desc">
+                These authentic corporate domains and official careers portals were cross-checked:
+              </p>
+              <div className="sources-list">
+                {genuineSources.map((source, idx) => (
+                  <a
+                    key={idx}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="source-item-link"
+                    title={`Visit ${source.title}`}
+                  >
+                    <div>
+                      <b>{source.title}</b>
+                      <span>{source.url}</span>
+                    </div>
+                    <span className="source-link-arrow">↗</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Positive Signals */}
+          {positives.length > 0 && (
+            <section className="content-card positive-card">
+              <div className="card-title">
+                <div>
+                  <p className="eyebrow">Positive signals</p>
+                  <h2>What looks reassuring</h2>
+                </div>
+              </div>
+              {positives.map((signal, idx) => (
+                <div className="positive-row" key={signal.id || idx}>
+                  <span><Icon name="check" size={15} /></span>
+                  <div>
+                    <b>{signal.name}</b>
+                    <p>{signal.evidence}</p>
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
+
+          {/* Next Steps */}
+          <section className="content-card next-card">
+            <p className="eyebrow">What to do next</p>
+            <h2>{result.band === 'high_risk' ? 'Pause before you respond.' : 'Verify independently before you decide.'}</h2>
+            <ol>
+              {result.recommendations && result.recommendations.length > 0 ? (
+                result.recommendations.map((rec, i) => <li key={i}>{rec}</li>)
+              ) : result.band === 'high_risk' ? (
+                <>
+                  <li>Do not send money, ID documents, or bank details.</li>
+                  <li>Find the company’s official website yourself and use its published contact details.</li>
+                  <li>Tell someone you trust if you feel pressured to act quickly.</li>
+                </>
+              ) : (
+                <>
+                  <li>Visit the company’s official careers page rather than using a link in the message.</li>
+                  <li>Confirm the role with an official company contact.</li>
+                  <li>Keep screenshots and avoid sharing sensitive documents too early.</li>
+                </>
+              )}
+            </ol>
+          </section>
+        </div>
+
+        <aside className="result-aside">
+          <section className="content-card details-card">
+            <div className="card-title">
+              <div>
+                <p className="eyebrow">Extracted details</p>
+                <h2>Offer information</h2>
+              </div>
+              <button className="edit-button" onClick={() => (editing ? recheck(details) : setEditing(true))}>
+                {editing ? 'Re-check' : 'Edit'}
+              </button>
+            </div>
+            <div className="details-list">
+              <DetailItem label="Company" value={details.company || 'Not detected'} edit={editing} onChange={setDetail('company')} />
+              <DetailItem label="Role" value={details.role || 'Not detected'} edit={editing} onChange={setDetail('role')} />
+              <DetailItem label="Salary" value={details.salary || 'Not stated'} edit={editing} onChange={setDetail('salary')} />
+              <DetailItem label="Recruiter email" value={details.recruiter_email || 'Not found'} edit={editing} onChange={setDetail('recruiter_email')} />
+              <DetailItem label="Website" value={details.company_website || 'Not found'} edit={editing} onChange={setDetail('company_website')} />
+              <DetailItem label="Interview channel" value={details.interview_channel || 'Not stated'} />
+            </div>
+            {editing && (
+              <button className="cancel-edit" onClick={() => { setDetails(result.details); setEditing(false); }}>
+                Cancel editing
+              </button>
+            )}
+          </section>
+
+          <section className="guest-card">
+            <span><Icon name="lock" size={17} /></span>
+            <div>
+              <b>Keep this result handy</b>
+              <p>Sign in to save scans and compare offers later.</p>
+              <button onClick={openAuth}>Sign in to save</button>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <p className="result-disclaimer">
+        <Icon name="shield" size={14} /> TrustHire gives guidance, not a guarantee. Verify with the company directly.
+      </p>
+    </main>
+  );
 }
 
 function DetailItem({ label, value, edit, onChange }) { return <div className="detail-item"><span>{label}</span>{edit && onChange ? <input value={value === 'Not stated' || value === 'Not found' ? '' : value} onChange={(event) => onChange(event.target.value)} /> : <b>{value}</b>}</div>; }
@@ -1061,49 +1287,112 @@ function App() {
   const runScan = async (text, overrides = {}) => {
     setPage('loading');
     setLoading({ active: 0 });
-    const steps = ['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'];
-    [300, 700, 1050, 1450].forEach((delay, index) => setTimeout(() => setLoading({ active: index }), delay));
+    const steps = [
+      'Reading offer document',
+      'Extracting company & role',
+      'Searching genuine sources',
+      'Verifying with Gemini AI',
+    ];
+    [300, 700, 1100, 1500].forEach((delay, index) =>
+      setTimeout(() => setLoading({ active: index }), delay)
+    );
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/scans`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, details: overrides }),
-      });
+    let finalResult = null;
 
-      if (res.ok) {
-        const backendResult = await res.json();
-        setTimeout(() => {
-          setResult(backendResult);
-          setSaved(true);
-          setPage('result');
-          const record = {
-            id: backendResult.id,
-            company: backendResult.details?.company || 'Unknown company',
-            role: backendResult.details?.role || 'Role not provided',
-            salary: backendResult.details?.salary || '',
-            score: backendResult.score,
-            band: backendResult.band,
-            date: 'Just now',
-            redFlags: (backendResult.redFlags || []).map((flag) => (typeof flag === 'string' ? flag : flag.name)),
-            result: backendResult,
-          };
-          setScans((current) => [record, ...current.filter((s) => s.id !== record.id)]);
-        }, 1650);
-        return;
+    // 1. Try Gemini AI Verification with Google Search Grounding if configured
+    if (isGeminiConfigured()) {
+      try {
+        console.log('Running Gemini AI Verification with genuine source search...');
+        const geminiOutput = await verifyOfferWithGemini(text, overrides);
+        finalResult = {
+          id: crypto.randomUUID?.() || 'gemini-' + Date.now(),
+          score: geminiOutput.score,
+          band: geminiOutput.band,
+          confidence: geminiOutput.confidence || 'High',
+          aiSummary: geminiOutput.aiSummary || '',
+          genuineSources: geminiOutput.genuineSources || [],
+          redFlags: geminiOutput.redFlags || [],
+          positives: geminiOutput.positives || [],
+          recommendations: geminiOutput.recommendations || [],
+          details: {
+            ...geminiOutput.details,
+            ...overrides,
+          },
+          text,
+          verifiedBy: 'Gemini AI & Live Grounding',
+          createdAt: new Date().toISOString(),
+        };
+      } catch (geminiErr) {
+        console.warn('Gemini verification error, falling back to heuristic evaluation:', geminiErr);
       }
-    } catch (err) {
-      console.warn('Backend request failed, falling back to client evaluation:', err);
     }
 
-    setTimeout(() => {
+    // 2. If Gemini was not run or failed, check via Backend
+    if (!finalResult) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/scans`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, details: overrides }),
+        });
+
+        if (res.ok) {
+          const backendResult = await res.json();
+          finalResult = {
+            ...backendResult,
+            details: backendResult.details || overrides,
+            verifiedBy: 'Standard Heuristic Engine',
+          };
+        }
+      } catch (err) {
+        console.warn('Backend request failed, evaluating locally:', err);
+      }
+    }
+
+    // 3. Client heuristic evaluation fallback
+    if (!finalResult) {
       const details = extractDetails(text, overrides);
       const analysis = analyseOffer(text, details);
-      const localResult = { ...analysis, details, text, id: crypto.randomUUID?.() || String(Date.now()) };
-      setResult(localResult);
-      setSaved(false);
+      finalResult = {
+        ...analysis,
+        details,
+        text,
+        id: crypto.randomUUID?.() || String(Date.now()),
+        verifiedBy: 'Standard Heuristic Engine',
+      };
+    }
+
+    // Persist to backend asynchronously to save in cloud DB if reachable
+    try {
+      fetch(`${API_BASE_URL}/api/v1/scans`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          details: finalResult.details,
+        }),
+      }).catch(() => {});
+    } catch {}
+
+    setTimeout(() => {
+      setResult(finalResult);
+      setSaved(true);
       setPage('result');
-    }, 1650);
+      const record = {
+        id: finalResult.id,
+        company: finalResult.details?.company || 'Unknown company',
+        role: finalResult.details?.role || 'Role not provided',
+        salary: finalResult.details?.salary || '',
+        score: finalResult.score,
+        band: finalResult.band,
+        date: 'Just now',
+        redFlags: (finalResult.redFlags || []).map((flag) =>
+          typeof flag === 'string' ? flag : flag.name
+        ),
+        result: finalResult,
+      };
+      setScans((current) => [record, ...current.filter((s) => s.id !== record.id)]);
+    }, 1800);
   };
 
   const recheck = (details) => {

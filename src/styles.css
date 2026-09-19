@@ -147,6 +147,22 @@
 .danger-outline-button { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:9px; background:#fff; border:1px solid #e8b6b0; color:#c74c44; border-radius:8px; font-size:11px; font-weight:800; transition:all .2s; }
 .danger-outline-button:hover { background:#c74c44; color:#fff; }
 
+.gemini-status-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:14px; font-size:11px; font-weight:700; margin-bottom:14px; }
+.gemini-status-pill.active { background:#e8f4fd; color:#1a73e8; border:1px solid #c7e1fc; }
+.gemini-status-pill.inactive { background:#f4f6f8; color:#5f6368; border:1px solid #dadce0; }
+.ai-summary-card { background:#fbfdff; border:1px solid #d8e8f8; border-radius:14px; padding:20px; margin-bottom:16px; }
+.ai-summary-card h3 { font-size:14px; margin:0 0 8px; color:#1a5682; display:flex; align-items:center; gap:7px; }
+.ai-summary-card p { font-size:13px; line-height:1.65; color:#2c3e50; margin:0; }
+.genuine-sources-card { margin-top:16px; }
+.sources-desc { font-size:12px; color:var(--muted); margin:4px 0 14px; line-height:1.5; }
+.sources-list { display:flex; flex-direction:column; gap:8px; }
+.source-item-link { display:flex; justify-content:space-between; align-items:center; background:#f7faf9; border:1px solid #dce8e3; border-radius:10px; padding:12px 14px; text-decoration:none; transition:all .2s ease; }
+.source-item-link:hover { background:#edf7f2; border-color:#99cfb6; transform:translateX(2px); }
+.source-item-link b { font-size:12.5px; color:var(--ink); display:block; }
+.source-item-link span { font-size:11px; color:#2e7d32; display:block; word-break:break-all; }
+.source-link-arrow { font-size:14px; font-weight:800; color:#2e7d32; flex-shrink:0; }
+.verified-engine-tag { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#1a73e8; background:#e8f4fd; padding:3px 10px; border-radius:12px; border:1px solid #cce4fc; margin-top:8px; }
+
 @media (max-width:860px) {
   .profile-hero-card { flex-direction:column; align-items:flex-start; }
   .profile-hero-actions { flex-direction:row; width:100%; }
@@ -155,3 +171,4 @@
   .profile-grid { grid-template-columns:1fr; }
   .profile-form-row { grid-template-columns:1fr; }
 }
+
