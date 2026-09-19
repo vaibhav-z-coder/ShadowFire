@@ -91,7 +91,16 @@ public class ScanService {
 
         String query = (searchQuery != null && !searchQuery.isBlank()) ? searchQuery.trim() : null;
 
-        List<ScanRecord> records = scanRepository.searchScans(band, query);
+        List<ScanRecord> records;
+        if (band == null && query == null) {
+            records = scanRepository.findAllByOrderByCreatedAtDesc();
+        } else if (band != null && query == null) {
+            records = scanRepository.findByBandOrderByCreatedAtDesc(band);
+        } else if (band == null) {
+            records = scanRepository.findByCompanyContainingIgnoreCaseOrRoleContainingIgnoreCaseOrderByCreatedAtDesc(query, query);
+        } else {
+            records = scanRepository.findByBandAndCompanyContainingIgnoreCaseOrBandAndRoleContainingIgnoreCaseOrderByCreatedAtDesc(band, query, band, query);
+        }
         return records.stream().map(this::toResponse).toList();
     }
 
