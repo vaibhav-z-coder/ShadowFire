@@ -561,6 +561,25 @@ function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth }) {
         <ScoreGauge score={result.score} band={result.band} />
       </section>
 
+      {/* Critical Red Flag Alert Banner */}
+      {result.criticalWarning && (
+        <div className="critical-warning-alert-card" role="alert">
+          <div className="critical-warning-icon">
+            <Icon name="shield" size={26} />
+          </div>
+          <div className="critical-warning-body">
+            <span className="critical-alert-label">CRITICAL SCAM WARNING</span>
+            <h3>Immediate Scam Signal Detected</h3>
+            <p>{result.criticalWarning}</p>
+            <div className="critical-action-chips">
+              <span>🛑 Do NOT send any money or fee</span>
+              <span>🛑 Do NOT join Telegram/WhatsApp interview</span>
+              <span>🛑 Do NOT share ID or bank details</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="result-grid">
         <div className="result-column">
           {/* AI Executive Summary */}
