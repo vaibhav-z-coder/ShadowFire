@@ -506,158 +506,59 @@ function ScanPage({ runScan, setPage, scanError, onClearError }) {
   );
 }
 
-const LIVE_SEARCH_CHECKS = [
-  'Verifying company identity against verified corporate records...',
-  'Inspecting recruiter email MX records & sender domain reputation...',
-  'Cross-referencing 50,000+ known employment fraud patterns...',
-  'Checking for advance-fee, equipment check & deposit scam signals...',
-  'Searching verified careers portals & genuine job listings...',
-  'Analyzing salary figures against industry compensation standards...',
-  'Testing interview protocols against Telegram / SMS scam vectors...',
-  'Zero-tolerance circuit breaker: Scanning for critical fraud triggers...',
-  'Gemini AI: Deep reasoning across all signals & context...',
-  'Synthesizing authentic safety score and verified advice...',
-];
-
 function Loading({ steps }) {
-  const [queryIndex, setQueryIndex] = useState(0);
-  const [progress, setProgress] = useState(14);
-
-  useEffect(() => {
-    // Ultra-fast search query rotation every 280ms
-    const queryTimer = setInterval(() => {
-      setQueryIndex((prev) => (prev + 1) % LIVE_SEARCH_CHECKS.length);
-    }, 280);
-
-    // Fast-climbing progress counter (14% -> 96%)
-    const progressTimer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 96) return prev;
-        const bump = Math.floor(Math.random() * 3) + 2;
-        return Math.min(96, prev + bump);
-      });
-    }, 60);
-
-    return () => {
-      clearInterval(queryTimer);
-      clearInterval(progressTimer);
-    };
-  }, []);
-
   const activeIndex = typeof steps?.active === 'number' ? steps.active : 0;
   const stepList = Array.isArray(steps) && steps.length > 0
     ? steps
     : ['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'];
 
-  const radius = 64;
-  const circumference = 2 * Math.PI * radius;
-  const strokeOffset = circumference - (progress / 100) * circumference;
+  const activeHints = [
+    'Reading offer text and contact information...',
+    'Extracting company domain, role, and compensation terms...',
+    'Checking signals against known recruitment fraud patterns...',
+    'Scoring the results and synthesizing safety assessment...',
+  ];
 
   return (
     <main className="loading-page">
-      <div className="loading-card loading-card-enhanced">
-        {/* High-Velocity Circular Radar Scanner */}
-        <div className="circular-scanner-wrapper">
-          <div className="sonar-ring sonar-ring-1" />
-          <div className="sonar-ring sonar-ring-2" />
-          <div className="sonar-ring sonar-ring-3" />
-
-          <div className="circular-radar-track">
-            {/* Rapidly sweeping radar beam */}
-            <div className="radar-sweep-beam" />
-            <div className="radar-crosshair-h" />
-            <div className="radar-crosshair-v" />
-
-            {/* SVG Circular Progress Meter */}
-            <svg className="radar-svg" viewBox="0 0 160 160">
-              <circle
-                className="radar-track-bg"
-                cx="80"
-                cy="80"
-                r={radius}
-              />
-              <circle
-                className="radar-track-bar"
-                cx="80"
-                cy="80"
-                r={radius}
-                style={{
-                  strokeDasharray: circumference,
-                  strokeDashoffset: strokeOffset,
-                }}
-              />
-            </svg>
-
-            {/* Core Circular Display */}
-            <div className="radar-center-core">
-              <div className="radar-icon-pulse">
-                <Icon name="shield" size={24} />
-              </div>
-              <div className="radar-pct">{progress}%</div>
-              <div className="radar-subtext">SEARCHING</div>
-            </div>
+      <div className="loading-card">
+        {/* Clean, Refined Circular Progress Indicator */}
+        <div className="clean-spinner-wrapper">
+          <div className="circular-spinner-ring" />
+          <div className="spinner-center-icon">
+            <Icon name="shield" size={24} />
           </div>
         </div>
 
-        {/* Dynamic Headings */}
-        <p className="eyebrow loading-eyebrow">
-          <span className="live-pulse-dot" /> LIVE VERIFICATION SCAN
-        </p>
-        <h1 className="loading-title">Deep Cross-Referencing Offer</h1>
-        <p className="loading-subtitle">
-          Searching public databases, corporate domains, and fraud registries at high speed.
+        <p className="eyebrow">Checking your offer</p>
+        <h1 className="loading-clean-title">Reviewing offer details</h1>
+        <p className="loading-clean-subtitle">
+          {activeHints[activeIndex] || 'Reviewing signals and verifying details.'}
         </p>
 
-        {/* High-Speed Live Searching Ticker */}
-        <div className="fast-search-ticker">
-          <div className="ticker-header">
-            <span className="ticker-badge">
-              <span className="ticker-live-blink" /> FAST SEARCH ENGINE
-            </span>
-            <span className="ticker-speed">1,850+ signals / sec</span>
-          </div>
-          <div className="ticker-body">
-            <div className="ticker-icon-box">⚡</div>
-            <div className="ticker-query-content" key={queryIndex}>
-              {LIVE_SEARCH_CHECKS[queryIndex]}
-            </div>
-          </div>
-          <div className="ticker-progress-bar">
-            <div className="ticker-progress-fill" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-
-        {/* Circular Progress Step Milestones */}
-        <div className="progress-steps-modern">
+        {/* Minimal Steps List - Matching User's Clean Interface */}
+        <div className="minimal-steps-list">
           {stepList.map((step, index) => {
-            const isDone = index < activeIndex || progress > (index + 1) * 24;
-            const isActive = !isDone && (index === activeIndex || index <= Math.floor(progress / 25));
+            const isDone = index < activeIndex;
+            const isActive = index === activeIndex;
 
             return (
               <div
-                className={`step-row ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}
+                className={`minimal-step-row ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}
                 key={step}
               >
-                <div className="step-circle">
-                  {isDone ? (
-                    <Icon name="check" size={13} />
-                  ) : isActive ? (
-                    <span className="active-spinner-dot" />
-                  ) : (
-                    <span>{index + 1}</span>
-                  )}
+                <div className="minimal-step-circle-wrapper">
+                  {isActive && <div className="active-spinner-ring" />}
+                  <div className="minimal-step-circle">
+                    {isDone ? (
+                      <Icon name="check" size={13} />
+                    ) : (
+                      <span>{index + 1}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="step-label">
-                  <strong>{step}</strong>
-                </div>
-                <div className="step-status-tag">
-                  {isDone ? (
-                    <span className="tag-done"><Icon name="check" size={11} /> Verified</span>
-                  ) : isActive ? (
-                    <span className="tag-active">Analyzing...</span>
-                  ) : (
-                    <span className="tag-pending">Queued</span>
-                  )}
+                <div className="minimal-step-text">
+                  <span>{step}</span>
                 </div>
               </div>
             );
