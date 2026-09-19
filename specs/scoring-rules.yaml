@@ -1,0 +1,15 @@
+baseline: 50
+payment_trigger_cap: 39
+bands:
+  likely_legit: { min: 70, max: 100 }
+  suspicious: { min: 40, max: 69 }
+  high_risk: { min: 0, max: 39 }
+checks:
+  - { id: C1, name: Official company email, delta: 20 }
+  - { id: C2, name: Domain matches company, delta: 15 }
+  - { id: C3, name: Unrealistic salary, delta: -20 }
+  - { id: C4, name: Upfront payment mentioned, delta: -35 }
+  - { id: C5, name: Chat-only interview, delta: -25 }
+  - { id: C6, name: Poor grammar / urgency, delta: -10 }
+  - { id: C7, name: Missing company website, delta: -15 }
+free_email_domains: [gmail.com, yahoo.com, outlook.com, hotmail.com, rediffmail.com]
