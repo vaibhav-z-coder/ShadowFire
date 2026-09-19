@@ -205,17 +205,25 @@
 .critical-action-chips { display:flex; flex-wrap:wrap; gap:8px; }
 .critical-action-chips span { background:#fff; border:1px solid #f8c3bc; color:#a12b23; font-size:11px; font-weight:700; padding:5px 12px; border-radius:20px; }
 
+/* Guest Save History Banner & Account Isolation */
+.guest-save-banner { background:linear-gradient(135deg,#f2fbf5 0%,#eaf7ef 100%); border:1px solid #c2e8d3; border-radius:13px; padding:15px 20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:16px; box-shadow:0 3px 12px rgba(22,94,57,.06); }
+.guest-save-info { display:flex; align-items:center; gap:13px; }
+.guest-save-badge { width:32px; height:32px; border-radius:9px; background:#d7f3e3; color:#1b633f; display:grid; place-items:center; flex-shrink:0; }
+.guest-save-info strong { display:block; font-size:13.5px; font-weight:800; color:#143e2b; margin-bottom:2px; }
+.guest-save-info p { margin:0; font-size:12px; color:#496b5c; line-height:1.4; }
 
-@media (max-width:860px) {
-  .profile-hero-card { flex-direction:column; align-items:flex-start; }
-  .profile-hero-actions { flex-direction:row; width:100%; }
-  .profile-hero-actions>* { flex:1; }
-  .profile-stats-grid { grid-template-columns:1fr 1fr; }
-  .profile-grid { grid-template-columns:1fr; }
-  .profile-form-row { grid-template-columns:1fr; }
-  .scan-error-banner { flex-direction:column; align-items:flex-start; }
-  .scan-error-actions { width:100%; }
-  .scan-error-actions>* { flex:1; }
+.history-guest-box { padding:56px 24px; text-align:center; }
+.history-guest-actions { display:flex; gap:10px; justify-content:center; margin-top:20px; flex-wrap:wrap; }
+
+.user-synced-card span { color:#187346 !important; }
+.user-synced-card b { color:#fff; }
+.user-synced-card p { color:#a8cebe; }
+.user-synced-card button { color:#a8eed0; text-decoration:underline; font-weight:700; cursor:pointer; }
+
+@media (max-width:640px) {
+  .guest-save-banner { flex-direction:column; align-items:flex-start; gap:12px; }
+  .guest-save-banner .button { width:100%; }
 }
+
 
 

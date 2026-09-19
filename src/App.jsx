@@ -571,7 +571,7 @@ function Loading({ steps }) {
 
 function ScoreGauge({ score, band }) { const [shown, setShown] = useState(0); useEffect(() => { let start; const run = (time) => { if (!start) start = time; const next = Math.min(score, Math.round((time - start) / 950 * score)); setShown(next); if (next < score) requestAnimationFrame(run); }; const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); }, [score]); const radius = 105; const length = Math.PI * radius; const offset = length - (score / 100) * length; return <div className={`gauge ${band}`} role="img" aria-label={`Trust score ${score} out of 100, ${bandMeta(band).label}`}><svg viewBox="0 0 260 145"><path className="gauge-track" d="M25 130a105 105 0 0 1 210 0" pathLength="100" /><path className="gauge-value" d="M25 130a105 105 0 0 1 210 0" pathLength="100" style={{ strokeDasharray: '100', strokeDashoffset: 100 - score }} /></svg><div className="gauge-score"><strong>{shown}</strong><span>/100</span></div></div>; }
 
-function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth }) {
+function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth, user }) {
   const [editing, setEditing] = useState(false);
   const [details, setDetails] = useState(result.details || {});
   const [openFlag, setOpenFlag] = useState(null);
@@ -598,10 +598,32 @@ function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth }) {
         <div className="result-actions">
           <button className="secondary-button" onClick={() => setPage('scan')}>Check another</button>
           <button className="button" onClick={saved ? () => setPage('history') : saveScan}>
-            {saved ? <><Icon name="check" size={17} /> Saved to history</> : 'Save this scan'}
+            {saved ? (
+              <><Icon name="check" size={17} /> Saved to history</>
+            ) : user ? (
+              'Save this scan'
+            ) : (
+              <><Icon name="lock" size={14} /> Save to history</>
+            )}
           </button>
         </div>
       </div>
+
+      {/* Guest Save History Prompt */}
+      {!user && !saved && (
+        <div className="guest-save-banner">
+          <div className="guest-save-info">
+            <span className="guest-save-badge"><Icon name="lock" size={16} /></span>
+            <div>
+              <strong>Save your scan history</strong>
+              <p>Sign in with your email or Google to keep your scan results safely synced with your account.</p>
+            </div>
+          </div>
+          <button className="button button-small" onClick={saveScan}>
+            Sign in & save
+          </button>
+        </div>
+      )}
 
       <section className={`score-panel ${result.band}`}>
         <div className="score-copy">
@@ -797,14 +819,25 @@ function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth }) {
             )}
           </section>
 
-          <section className="guest-card">
-            <span><Icon name="lock" size={17} /></span>
-            <div>
-              <b>Keep this result handy</b>
-              <p>Sign in to save scans and compare offers later.</p>
-              <button onClick={openAuth}>Sign in to save</button>
-            </div>
-          </section>
+          {!user ? (
+            <section className="guest-card">
+              <span><Icon name="lock" size={17} /></span>
+              <div>
+                <b>Save to your history</b>
+                <p>Sign in to save this evaluation and access it anytime across devices.</p>
+                <button onClick={saveScan}>Sign in to save</button>
+              </div>
+            </section>
+          ) : (
+            <section className="guest-card user-synced-card">
+              <span><Icon name="check" size={17} /></span>
+              <div>
+                <b>Account Synced</b>
+                <p>Saved securely under <strong>{user.email}</strong>.</p>
+                <button onClick={() => setPage('history')}>View your scans</button>
+              </div>
+            </section>
+          )}
         </aside>
       </section>
 
@@ -817,9 +850,112 @@ function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth }) {
 
 function DetailItem({ label, value, edit, onChange }) { return <div className="detail-item"><span>{label}</span>{edit && onChange ? <input value={value === 'Not stated' || value === 'Not found' ? '' : value} onChange={(event) => onChange(event.target.value)} /> : <b>{value}</b>}</div>; }
 
-function History({ scans, setPage, deleteScan, openAuth, filter, setFilter, query, setQuery }) {
-  const items = useMemo(() => scans.filter((scan) => (filter === 'all' || scan.band === filter) && `${scan.company} ${scan.role}`.toLowerCase().includes(query.toLowerCase())), [scans, filter, query]);
-  return <main className="history-page"><div className="crumb"><button onClick={() => setPage('home')}>Home</button><span>/</span><strong>History</strong></div><div className="history-heading"><div><p className="eyebrow">Your scans</p><h1>Keep track of every <em>offer you checked.</em></h1><p>All your verified evaluations, organized in one safe place.</p></div><button className="button" onClick={() => setPage('scan')}><Icon name="scan" size={17} /> New scan</button></div><div className="history-toolbar"><label><span className="search-symbol">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company or role" /></label><div className="filter-pills">{[['all', 'All scans'], ['high_risk', 'High risk'], ['suspicious', 'Suspicious'], ['likely_legit', 'Likely legit']].map(([value, label]) => <button className={filter === value ? 'selected' : ''} key={value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>{items.length ? <div className="history-table"><div className="history-row history-labels"><span>Company & role</span><span>Assessment</span><span>Checked</span><span aria-hidden="true" /></div>{items.map((scan) => <article className="history-row" key={scan.id}><div className="company-cell"><span className={`company-icon ${scan.band}`}>{scan.company ? scan.company.slice(0, 1) : 'O'}</span><div><b>{scan.company}</b><p>{scan.role}</p></div></div><div className="score-cell"><strong>{scan.score}</strong><BandBadge band={scan.band} compact /></div><span className="date-cell">{scan.date}</span><div className="row-actions"><button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button><button className="delete-button" aria-label={`Delete ${scan.company} scan`} onClick={() => deleteScan(scan.id)}><Icon name="trash" size={17} /></button></div></article>)}</div> : <div className="history-empty"><span><Icon name="history" size={24} /></span><h2>No matching scans yet</h2><p>Try a different filter or check a new job offer.</p><button className="button" onClick={() => setPage('scan')}>Check an offer</button></div>}<section className="history-signin"><Icon name="lock" size={19} /><div><b>Encrypted Cloud Sync</b><p>All your checked job offers are safely backed up to your account.</p></div><button className="secondary-button" onClick={openAuth}>Status: Protected</button></section></main>;
+function History({ scans, setPage, deleteScan, openAuth, filter, setFilter, query, setQuery, user }) {
+  const items = useMemo(
+    () => scans.filter((scan) => (filter === 'all' || scan.band === filter) && `${scan.company} ${scan.role}`.toLowerCase().includes(query.toLowerCase())),
+    [scans, filter, query]
+  );
+
+  if (!user) {
+    return (
+      <main className="history-page">
+        <div className="crumb">
+          <button onClick={() => setPage('home')}>Home</button>
+          <span>/</span>
+          <strong>History</strong>
+        </div>
+        <div className="history-empty history-guest-box">
+          <span><Icon name="lock" size={28} /></span>
+          <h2>Sign in to view your scan history</h2>
+          <p>Scans saved to your registered account are securely backed up here across your devices.</p>
+          <div className="history-guest-actions">
+            <button className="button" onClick={openAuth}>
+              <Icon name="user" size={16} /> Sign in / Register
+            </button>
+            <button className="secondary-button" onClick={() => setPage('scan')}>
+              Scan an offer first
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="history-page">
+      <div className="crumb">
+        <button onClick={() => setPage('home')}>Home</button>
+        <span>/</span>
+        <strong>History</strong>
+      </div>
+      <div className="history-heading">
+        <div>
+          <p className="eyebrow">Your account history</p>
+          <h1>Keep track of every <em>offer you checked.</em></h1>
+          <p>Synced with <strong>{user.email}</strong>.</p>
+        </div>
+        <button className="button" onClick={() => setPage('scan')}><Icon name="scan" size={17} /> New scan</button>
+      </div>
+      <div className="history-toolbar">
+        <label>
+          <span className="search-symbol">⌕</span>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company or role" />
+        </label>
+        <div className="filter-pills">
+          {[['all', 'All scans'], ['high_risk', 'High risk'], ['suspicious', 'Suspicious'], ['likely_legit', 'Likely legit']].map(([value, label]) => (
+            <button className={filter === value ? 'selected' : ''} key={value} onClick={() => setFilter(value)}>{label}</button>
+          ))}
+        </div>
+      </div>
+      {items.length ? (
+        <div className="history-table">
+          <div className="history-row history-labels">
+            <span>Company & role</span>
+            <span>Assessment</span>
+            <span>Checked</span>
+            <span aria-hidden="true" />
+          </div>
+          {items.map((scan) => (
+            <article className="history-row" key={scan.id}>
+              <div className="company-cell">
+                <span className={`company-icon ${scan.band}`}>{scan.company ? scan.company.slice(0, 1) : 'O'}</span>
+                <div>
+                  <b>{scan.company}</b>
+                  <p>{scan.role}</p>
+                </div>
+              </div>
+              <div className="score-cell">
+                <strong>{scan.score}</strong>
+                <BandBadge band={scan.band} compact />
+              </div>
+              <span className="date-cell">{scan.date}</span>
+              <div className="row-actions">
+                <button onClick={() => { if (scan.result) { window.__trustResult = scan.result; setPage('result'); } }}>View</button>
+                <button className="delete-button" aria-label={`Delete ${scan.company} scan`} onClick={() => deleteScan(scan.id)}>
+                  <Icon name="trash" size={17} />
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="history-empty">
+          <span><Icon name="history" size={24} /></span>
+          <h2>No saved scans for this account yet</h2>
+          <p>Offers you check and save will appear here.</p>
+          <button className="button" onClick={() => setPage('scan')}>Check an offer</button>
+        </div>
+      )}
+      <section className="history-signin">
+        <Icon name="lock" size={19} />
+        <div>
+          <b>Account Synced: {user.email}</b>
+          <p>All evaluations saved to this email are private and isolated to your account.</p>
+        </div>
+        <button className="secondary-button" onClick={() => setPage('profile')}>Manage account</button>
+      </section>
+    </main>
+  );
 }
 
 function AuthModal({ close, onLoginSuccess }) {
@@ -1344,6 +1480,46 @@ const getPageFromHash = () => {
   return VALID_PAGES.includes(hash) ? hash : 'home';
 };
 
+const getUserScanStorageKey = (userObj) => {
+  if (!userObj || !userObj.email) return null;
+  return `trusthire-scans_${userObj.email.toLowerCase().trim()}`;
+};
+
+const loadUserScans = (userObj) => {
+  if (!userObj || !userObj.email) return [];
+  const key = getUserScanStorageKey(userObj);
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveUserScans = (userObj, scanList) => {
+  const key = getUserScanStorageKey(userObj);
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(scanList));
+  } catch (err) {
+    console.warn('Failed to cache user scans:', err);
+  }
+};
+
+const formatScanRecord = (res) => ({
+  id: res.id,
+  company: res.details?.company || 'Unknown company',
+  role: res.details?.role || 'Role not provided',
+  salary: res.details?.salary || '',
+  score: res.score,
+  band: res.band,
+  date: 'Just now',
+  redFlags: (res.redFlags || []).map((flag) =>
+    typeof flag === 'string' ? flag : flag.name
+  ),
+  result: res,
+});
+
 function App() {
   const [page, setPageState] = useState(getPageFromHash);
 
@@ -1369,47 +1545,111 @@ function App() {
   const [scanError, setScanError] = useState(null);
   const [auth, setAuth] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [pendingSaveResult, setPendingSaveResult] = useState(null);
   const [historyFilter, setHistoryFilter] = useState('all');
   const [historyQuery, setHistoryQuery] = useState('');
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('trusthire-user')) || null; } catch { return null; }
   });
   const [scans, setScans] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('trusthire-scans')) || DEMO_SCANS; } catch { return DEMO_SCANS; }
+    try {
+      const stored = JSON.parse(localStorage.getItem('trusthire-user'));
+      return loadUserScans(stored);
+    } catch {
+      return [];
+    }
   });
+
+  // Sync scans state whenever user changes (switch account or sign out)
+  useEffect(() => {
+    if (user && user.email) {
+      const userScans = loadUserScans(user);
+      setScans(userScans);
+      fetchScansFromBackend(user.email, historyFilter, historyQuery);
+    } else {
+      setScans([]);
+    }
+  }, [user?.email]);
+
+  // Save scans to account-specific storage whenever scans change
+  useEffect(() => {
+    if (user && user.email) {
+      saveUserScans(user, scans);
+    }
+  }, [scans, user]);
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
     localStorage.setItem('trusthire-user', JSON.stringify(userData));
+
+    // Load scans for the newly logged in user
+    const existing = loadUserScans(userData);
+
+    // If there is an active/pending scan to save to the account:
+    const scanToSave = pendingSaveResult || (page === 'result' && result && !saved ? result : null);
+
+    if (scanToSave) {
+      const record = formatScanRecord(scanToSave);
+      const updated = [record, ...existing.filter((s) => s.id !== record.id)];
+      setScans(updated);
+      saveUserScans(userData, updated);
+      setSaved(true);
+      setPendingSaveResult(null);
+
+      // Async sync to backend with userEmail
+      try {
+        fetch(`${API_BASE_URL}/api/v1/scans`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: scanToSave.text,
+            details: {
+              ...scanToSave.details,
+              userEmail: userData.email,
+            },
+          }),
+        }).catch(() => {});
+      } catch {}
+    } else {
+      setScans(existing);
+    }
   };
 
   const handleSignOut = () => {
     setUser(null);
+    setScans([]);
+    setSaved(false);
+    setPendingSaveResult(null);
     localStorage.removeItem('trusthire-user');
   };
 
-  const fetchScansFromBackend = async (filterBand = historyFilter, searchQ = historyQuery) => {
+  const fetchScansFromBackend = async (userEmail = user?.email, filterBand = historyFilter, searchQ = historyQuery) => {
+    if (!userEmail) return;
     try {
       const params = new URLSearchParams();
+      params.append('userEmail', userEmail);
       if (filterBand && filterBand !== 'all') params.append('band', filterBand);
       if (searchQ && searchQ.trim()) params.append('query', searchQ.trim());
       const res = await fetch(`${API_BASE_URL}/api/v1/scans?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const formatted = data.map((item) => ({
-            id: item.id,
-            company: item.details?.company || 'Unknown company',
-            role: item.details?.role || 'Role not provided',
-            salary: item.details?.salary || '',
-            score: item.score,
-            band: item.band,
-            date: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Today',
-            redFlags: (item.redFlags || []).map((f) => f.name || f),
-            result: item,
-          }));
-          setScans(formatted);
-          localStorage.setItem('trusthire-scans', JSON.stringify(formatted));
+        if (Array.isArray(data)) {
+          const userScans = data.filter((item) => !item.details?.userEmail || item.details.userEmail.toLowerCase() === userEmail.toLowerCase());
+          if (userScans.length > 0) {
+            const formatted = userScans.map((item) => ({
+              id: item.id,
+              company: item.details?.company || 'Unknown company',
+              role: item.details?.role || 'Role not provided',
+              salary: item.details?.salary || '',
+              score: item.score,
+              band: item.band,
+              date: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Today',
+              redFlags: (item.redFlags || []).map((f) => f.name || f),
+              result: item,
+            }));
+            setScans(formatted);
+            saveUserScans({ email: userEmail }, formatted);
+          }
         }
       }
     } catch (err) {
@@ -1418,14 +1658,10 @@ function App() {
   };
 
   useEffect(() => {
-    if (page === 'history') {
-      fetchScansFromBackend(historyFilter, historyQuery);
+    if (page === 'history' && user && user.email) {
+      fetchScansFromBackend(user.email, historyFilter, historyQuery);
     }
-  }, [page, historyFilter, historyQuery]);
-
-  useEffect(() => {
-    localStorage.setItem('trusthire-scans', JSON.stringify(scans));
-  }, [scans]);
+  }, [page, historyFilter, historyQuery, user?.email]);
 
   const runScan = async (text, overrides = {}) => {
     setScanError(null);
@@ -1464,36 +1700,37 @@ function App() {
         createdAt: new Date().toISOString(),
       };
 
-      // Persist to backend asynchronously to save in cloud DB if reachable
-      try {
-        fetch(`${API_BASE_URL}/api/v1/scans`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text,
-            details: finalResult.details,
-          }),
-        }).catch(() => {});
-      } catch {}
-
       setTimeout(() => {
         setResult(finalResult);
-        setSaved(true);
         setPage('result');
-        const record = {
-          id: finalResult.id,
-          company: finalResult.details?.company || 'Unknown company',
-          role: finalResult.details?.role || 'Role not provided',
-          salary: finalResult.details?.salary || '',
-          score: finalResult.score,
-          band: finalResult.band,
-          date: 'Just now',
-          redFlags: (finalResult.redFlags || []).map((flag) =>
-            typeof flag === 'string' ? flag : flag.name
-          ),
-          result: finalResult,
-        };
-        setScans((current) => [record, ...current.filter((s) => s.id !== record.id)]);
+
+        if (user && user.email) {
+          // Logged-in user: save to their account history
+          const record = formatScanRecord(finalResult);
+          setScans((current) => {
+            const updated = [record, ...current.filter((s) => s.id !== record.id)];
+            saveUserScans(user, updated);
+            return updated;
+          });
+          setSaved(true);
+
+          try {
+            fetch(`${API_BASE_URL}/api/v1/scans`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text,
+                details: {
+                  ...finalResult.details,
+                  userEmail: user.email,
+                },
+              }),
+            }).catch(() => {});
+          } catch {}
+        } else {
+          // Guest user: allow scanning freely, not auto-saved to account history
+          setSaved(false);
+        }
       }, 1600);
     } catch (err) {
       console.error('Gemini verification error:', err);
@@ -1512,19 +1749,33 @@ function App() {
 
   const saveScan = () => {
     if (!result) return;
-    const record = {
-      id: result.id,
-      company: result.details?.company || 'Unknown company',
-      role: result.details?.role || 'Role not provided',
-      salary: result.details?.salary || '',
-      score: result.score,
-      band: result.band,
-      date: 'Just now',
-      redFlags: (result.redFlags || []).map((flag) => (typeof flag === 'string' ? flag : flag.name)),
-      result,
-    };
-    setScans((current) => [record, ...current.filter((scan) => scan.id !== record.id)]);
+    if (!user || !user.email) {
+      // Guest clicked "Save to history": popup sign in page!
+      setPendingSaveResult(result);
+      setAuth(true);
+      return;
+    }
+    const record = formatScanRecord(result);
+    setScans((current) => {
+      const updated = [record, ...current.filter((scan) => scan.id !== record.id)];
+      saveUserScans(user, updated);
+      return updated;
+    });
     setSaved(true);
+
+    try {
+      fetch(`${API_BASE_URL}/api/v1/scans`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: result.text,
+          details: {
+            ...result.details,
+            userEmail: user.email,
+          },
+        }),
+      }).catch(() => {});
+    } catch {}
   };
 
   const deleteScan = async (id) => {
@@ -1533,7 +1784,13 @@ function App() {
     } catch (err) {
       console.warn('Failed to delete on backend:', err);
     }
-    setScans((current) => current.filter((scan) => scan.id !== id));
+    setScans((current) => {
+      const updated = current.filter((scan) => scan.id !== id);
+      if (user && user.email) {
+        saveUserScans(user, updated);
+      }
+      return updated;
+    });
   };
 
   const startSample = () => runScan(SAMPLE_OFFER.text, SAMPLE_OFFER.details);
@@ -1552,7 +1809,20 @@ function App() {
         />
       )}
       {page === 'loading' && <Loading steps={Object.assign(['Reading the offer', 'Extracting details', 'Checking signals', 'Scoring the result'], loading || { active: 0 })} />}
-      {page === 'result' && visibleResult && <ResultPage result={visibleResult} setPage={setPage} recheck={recheck} saveScan={saveScan} saved={saved} openAuth={() => setAuth(true)} />}
+      {page === 'result' && visibleResult && (
+        <ResultPage
+          result={visibleResult}
+          setPage={setPage}
+          recheck={recheck}
+          saveScan={saveScan}
+          saved={saved}
+          openAuth={() => {
+            setPendingSaveResult(visibleResult);
+            setAuth(true);
+          }}
+          user={user}
+        />
+      )}
       {page === 'history' && (
         <History
           scans={scans}
@@ -1563,6 +1833,7 @@ function App() {
           setFilter={setHistoryFilter}
           query={historyQuery}
           setQuery={setHistoryQuery}
+          user={user}
         />
       )}
       {page === 'profile' && (
