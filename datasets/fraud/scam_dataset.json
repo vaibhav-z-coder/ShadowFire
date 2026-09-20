@@ -1,0 +1,102 @@
+[
+  {
+    "text": "Congratulations! You have been selected for a work-from-home job. Pay ₹2,999 registration fee immediately to confirm your job.",
+    "label": "fraud",
+    "category": "job_scam"
+  },
+  {
+    "text": "Dear candidate, you are selected for Amazon Data Entry part time job. Earn 5000 daily. Just pay 1500 refundable security deposit.",
+    "label": "fraud",
+    "category": "job_scam"
+  },
+  {
+    "text": "URGENT: Your SBI bank account will be blocked today due to pending KYC. Click http://sbi-kyc-update.xyz to submit your PAN and OTP immediately.",
+    "label": "fraud",
+    "category": "phishing"
+  },
+  {
+    "text": "Your Netflix membership has expired. Please verify your billing details and update credit card CVV and OTP to continue streaming.",
+    "label": "fraud",
+    "category": "phishing"
+  },
+  {
+    "text": "You have won £1,000,000 in the International Coca-Cola Mobile Lottery! Contact claims agent Dr. Raymond with your bank details and pay £250 processing tax.",
+    "label": "fraud",
+    "category": "lottery_scam"
+  },
+  {
+    "text": "Congratulations! Your phone number won $500,000 in the Google Annual Sweepstakes. Send your passport and $200 release fee to claim.",
+    "label": "fraud",
+    "category": "lottery_scam"
+  },
+  {
+    "text": "Earn ₹50,000 per week by liking YouTube videos and rating Google Maps locations! Contact our HR on Telegram @EarnFastDaily now.",
+    "label": "fraud",
+    "category": "task_scam"
+  },
+  {
+    "text": "Daily crypto investment plan: Invest $100 and get guaranteed return of $1,000 within 24 hours. Zero risk, 100% automated trading bot.",
+    "label": "fraud",
+    "category": "financial_fraud"
+  },
+  {
+    "text": "FedEx: Your package delivery is on hold due to unpaid customs fee of $3.50. Update delivery address and enter credit card info at http://parcel-tracker.top",
+    "label": "fraud",
+    "category": "courier_scam"
+  },
+  {
+    "text": "Immediate action required: Police warrant issued against your tax file. Pay penalty fee of ₹10,000 immediately via gift cards to avoid arrest.",
+    "label": "fraud",
+    "category": "impersonation_threat"
+  },
+  {
+    "text": "Hi Vaibhav, please find the meeting agenda and slides attached for tomorrow's 10 AM project status sync.",
+    "label": "legitimate",
+    "category": "business_communication"
+  },
+  {
+    "text": "Thank you for applying for the Software Engineer role at Stripe. We would like to invite you for a 45-minute technical interview on Google Meet.",
+    "label": "legitimate",
+    "category": "job_recruitment"
+  },
+  {
+    "text": "Your Amazon order #402-91823 has been shipped and is expected to arrive on Tuesday. Track your package in the official Amazon app.",
+    "label": "legitimate",
+    "category": "transactional"
+  },
+  {
+    "text": "Your one-time password (OTP) for logging into your account is 482910. It is valid for 5 minutes. Do not share this OTP with anyone, including bank staff.",
+    "label": "legitimate",
+    "category": "transactional"
+  },
+  {
+    "text": "Hi team, sprint planning has been rescheduled to Thursday at 2 PM. Please update your backlog tickets before the meeting.",
+    "label": "legitimate",
+    "category": "business_communication"
+  },
+  {
+    "text": "Dear Customer, ₹4,500.00 has been debited from your account ending in 4102 via UPI for Zomato. If not done by you, call official bank helpline.",
+    "label": "legitimate",
+    "category": "transactional"
+  },
+  {
+    "text": "Hey, let's grab coffee this evening around 5 PM at the cafe near the park if you are free!",
+    "label": "legitimate",
+    "category": "personal_message"
+  },
+  {
+    "text": "GitHub security alert: A new personal access token was generated from an IP in Bangalore, India. If this was you, no action is needed.",
+    "label": "legitimate",
+    "category": "security_notification"
+  },
+  {
+    "text": "URGENT JOB: Pay ₹999 laptop delivery charge before receiving your official company MacBook. Offer letter attached.",
+    "label": "fraud",
+    "category": "job_scam"
+  },
+  {
+    "text": "Your electricity connection will be disconnected tonight at 9:30 PM because the previous bill was not updated. Call electricity officer now.",
+    "label": "fraud",
+    "category": "impersonation_threat"
+  }
+]

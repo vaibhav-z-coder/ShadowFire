@@ -1,0 +1,15 @@
+{
+  "vocab": [
+    "fee",
+    "deposit",
+    "selected",
+    "otp",
+    "pay",
+    "congratulations",
+    "urgent",
+    "kyc",
+    "won"
+  ],
+  "trained": true,
+  "sample_count": 20
+}

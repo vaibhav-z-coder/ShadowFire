@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for users, analysis history, evidence, and risk reports
+  db:
+    image: postgres:16-alpine
+    container_name: digital_trust_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trust_admin
+      POSTGRES_PASSWORD: trust_secret_password
+      POSTGRES_DB: digital_trust_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trust_admin -d digital_trust_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Digital Trust Platform Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: digital_trust_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://trust_admin:trust_secret_password@db:5432/digital_trust_db
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=gemini-2.5-flash
+      - ENVIRONMENT=production
+      - DEBUG=False
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:

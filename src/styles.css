@@ -232,3 +232,739 @@
   .guest-save-banner { flex-direction:column; align-items:flex-start; gap:12px; }
   .guest-save-banner .button { width:100%; }
 }
+
+
+/* ===================================================
+   Digital Trust Report Component (Step 4)
+   =================================================== */
+.digital-trust-report-card {
+  background: #ffffff;
+  border: 2px solid #10212a;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 28px;
+  box-shadow: 0 10px 30px rgba(16, 33, 42, 0.08);
+}
+.trust-report-header {
+  text-align: center;
+  border-bottom: 1px solid #e2ebe6;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.trust-report-header h2 {
+  font-size: 24px;
+  letter-spacing: 2px;
+  margin: 6px 0 0;
+  font-weight: 800;
+}
+.trust-report-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.trust-metric-box {
+  background: #f6f9f8;
+  border: 1px solid #dce5e2;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+.metric-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #65757c;
+  margin-bottom: 6px;
+}
+.risk-badge {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.risk-badge.high_risk { background: #fff0ed; color: #b5443c; border: 1px solid #f8c9c4; }
+.risk-badge.suspicious { background: #fff8e7; color: #a46416; border: 1px solid #fae4b5; }
+.risk-badge.likely_legit { background: #e9f8ef; color: #147149; border: 1px solid #bce6cd; }
+.metric-val { font-size: 16px; color: #10212a; font-weight: 800; }
+.trust-section { margin-bottom: 20px; }
+.trust-section h3 {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #55656c;
+  margin-bottom: 10px;
+}
+.trust-signals-list { list-style: none; padding: 0; margin: 0; }
+.trust-signals-list li {
+  font-size: 14px;
+  font-weight: 600;
+  color: #10212a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+.check-mark { color: #13724a; font-weight: 800; }
+.trust-section p { font-size: 14px; line-height: 1.6; color: #37474f; margin: 0; }
+.recommendation-box {
+  background: #f0f8ff;
+  border: 1px solid #d0e5f9;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.recommendation-box h3 { color: #0284c7; }
+.recommendation-box p { font-weight: 600; color: #0f172a; }
+
+/* Media Tab Styles */
+.media-type-pill-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.media-type-pill {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #dce5e2;
+  border-radius: 8px;
+  background: #ffffff;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+.media-type-pill.active {
+  background: #10212a;
+  color: #ffffff;
+  border-color: #10212a;
+}
+
+
+/* ===================================================
+   Digital Trust PDF Dashboard Specification Styles
+   =================================================== */
+.dt-dashboard {
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 40px 0 80px;
+}
+.dt-hero {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 44px;
+}
+.dt-hero h1 {
+  font-size: clamp(32px, 4vw, 48px);
+  letter-spacing: -1.8px;
+  line-height: 1.15;
+  margin-bottom: 14px;
+  color: var(--ink);
+}
+.dt-hero p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.dt-section-title {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.dt-section-title h2 {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ink);
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+.dt-section-title p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+.dt-checker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 50px;
+}
+@media (max-width: 860px) {
+  .dt-checker-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .dt-checker-grid { grid-template-columns: 1fr; }
+}
+.dt-checker-card {
+  background: #ffffff;
+  border: 1.5px solid #dce5e2;
+  border-radius: 16px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(16, 33, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+.dt-checker-card:hover {
+  transform: translateY(-3px);
+  border-color: #13724a;
+  box-shadow: 0 12px 30px rgba(19, 114, 74, 0.12);
+}
+.dt-checker-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #f0f7f4;
+  color: #13724a;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+.dt-checker-card h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+.dt-checker-card p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 16px;
+  flex: 1;
+}
+.dt-checker-action {
+  font-size: 12px;
+  font-weight: 800;
+  color: #13724a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Recent Analysis Section */
+.dt-recent-card {
+  background: #ffffff;
+  border: 1px solid #dce5e2;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 18px rgba(16, 33, 42, 0.04);
+}
+.dt-recent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e9efec;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+.dt-recent-header h3 {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #354944;
+  margin: 0;
+}
+.dt-recent-list {
+  display: flex;
+  flex-direction: column;
+}
+.dt-recent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f4f2;
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+.dt-recent-row:last-child {
+  border-bottom: none;
+}
+.dt-recent-row.clickable {
+  cursor: pointer;
+}
+.dt-recent-row.clickable:hover {
+  background: #f4f8f6;
+  transform: translateX(3px);
+}
+.dt-recent-type {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dt-recent-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.dt-recent-time {
+  font-size: 12px;
+  color: var(--muted);
+}
+.dt-view-btn {
+  font-size: 11px;
+  font-weight: 700;
+  color: #13724a;
+  background: #e6f7ed;
+  border: 1px solid #c2ebd5;
+  border-radius: 6px;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 6-Option Scanner Tabs */
+.dt-checker-tabs-wrap {
+  margin-bottom: 22px;
+}
+.dt-checker-tabs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  background: #f1f6f3;
+  padding: 6px;
+  border-radius: 14px;
+}
+@media (max-width: 900px) {
+  .dt-checker-tabs {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 540px) {
+  .dt-checker-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.dt-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 10px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #556961;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dt-tab-btn span.tab-emoji {
+  font-size: 18px;
+}
+.dt-tab-btn:hover {
+  color: #10212a;
+  background: rgba(255, 255, 255, 0.6);
+}
+.dt-tab-btn.active {
+  background: #ffffff;
+  color: #10212a;
+  box-shadow: 0 3px 10px rgba(16, 33, 42, 0.08);
+}
+
+/* Engine Active Indicator Banner */
+.dt-engine-banner {
+  background: #f4f8f6;
+  border: 1px solid #d8e5df;
+  border-left: 4px solid #13724a;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dt-engine-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dt-engine-pill {
+  background: #13724a;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.dt-engine-desc {
+  font-size: 12px;
+  color: #384d45;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Mode-Specific Sample Buttons Bar */
+.dt-sample-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+.dt-sample-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #72847d;
+  letter-spacing: 0.5px;
+  margin-right: 4px;
+}
+.dt-sample-chip {
+  background: #f5f8f7;
+  border: 1px solid #d9e4df;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #244136;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dt-sample-chip:hover {
+  background: #e6f4ee;
+  border-color: #13724a;
+  color: #13724a;
+}
+
+/* Media Previews & Dropzones */
+.dt-media-dropzone {
+  border: 2px dashed #cedbd5;
+  border-radius: 14px;
+  padding: 30px 20px;
+  text-align: center;
+  background: #fafcfb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.dt-media-dropzone:hover {
+  border-color: #13724a;
+  background: #f4faf6;
+}
+.dt-preview-box {
+  margin-top: 14px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #dbe6e1;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.dt-preview-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #cedbd5;
+}
+.dt-preview-meta {
+  flex: 1;
+  text-align: left;
+}
+.dt-preview-meta strong {
+  display: block;
+  font-size: 13px;
+  color: #10212a;
+}
+.dt-preview-meta span {
+  font-size: 11px;
+  color: #65757c;
+}
+.dt-forensic-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dt-forensic-tag {
+  font-size: 10px;
+  font-weight: 700;
+  background: #eef5f2;
+  color: #1a563c;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+/* Audio Waveform Simulator */
+.dt-audio-visualizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 48px;
+  padding: 8px 16px;
+  background: #10212a;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+.dt-audio-bar {
+  width: 4px;
+  background: #10b981;
+  border-radius: 2px;
+  animation: dtAudioWave 1.2s ease-in-out infinite alternate;
+}
+@keyframes dtAudioWave {
+  0% { height: 15%; opacity: 0.4; }
+  100% { height: 95%; opacity: 1; }
+}
+
+/* Multi-Check Workspace */
+.dt-multi-workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 768px) {
+  .dt-multi-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Modular Engine Breakdown Matrix */
+.dt-engine-matrix-section {
+  margin: 24px 0;
+  border-top: 1px solid #e4ece8;
+  padding-top: 20px;
+}
+.dt-engine-matrix-title {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #55656c;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dt-engine-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 860px) {
+  .dt-engine-matrix-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .dt-engine-matrix-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.dt-matrix-card {
+  background: #f8fbfa;
+  border: 1px solid #dce6e1;
+  border-radius: 10px;
+  padding: 12px;
+}
+.dt-matrix-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.dt-matrix-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #10212a;
+}
+.dt-matrix-status {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.dt-matrix-status.active { background: #dff2e6; color: #106f43; }
+.dt-matrix-status.triggered { background: #fee2e2; color: #b91c1c; }
+.dt-matrix-status.idle { background: #eceff1; color: #64748b; }
+.dt-matrix-desc {
+  font-size: 10px;
+  color: #65757c;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Report Action Bar */
+.dt-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e4ece8;
+}
+.dt-action-btn {
+  background: #ffffff;
+  border: 1px solid #cedbd5;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #244136;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.dt-action-btn:hover {
+  background: #f0f7f4;
+  border-color: #13724a;
+  color: #13724a;
+}
+.dt-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #10212a;
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Interactive Architecture Modal */
+.dt-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(16, 33, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+  padding: 20px;
+}
+.dt-architecture-modal {
+  background: #ffffff;
+  border-radius: 20px;
+  max-width: 820px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  border: 2px solid #10212a;
+  padding: 32px;
+}
+.dt-arch-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid #e4ece8;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.dt-arch-header h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #10212a;
+  margin: 4px 0 0;
+}
+.dt-arch-close {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #72847d;
+}
+.dt-arch-step {
+  background: #f8fbfa;
+  border: 1px solid #dce6e1;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 14px;
+}
+.dt-arch-num {
+  width: 28px;
+  height: 28px;
+  background: #13724a;
+  color: #ffffff;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.dt-arch-body strong {
+  display: block;
+  font-size: 14px;
+  color: #10212a;
+  margin-bottom: 4px;
+}
+.dt-arch-body p {
+  font-size: 12px;
+  color: #55656c;
+  line-height: 1.5;
+  margin: 0;
+}
+.dt-arch-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dt-arch-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: #ffffff;
+  border: 1px solid #cedbd5;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #244136;
+}
+
+/* Print Stylesheet for Executive Trust Report Export */
+@media print {
+  .site-header, .site-footer, .crumb, .result-actions, .guest-save-banner, .dt-report-actions, .brand, .dropdown-arrow, button {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+  .digital-trust-report-card {
+    border: 1px solid #000000 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 15px !important;
+    page-break-inside: avoid;
+  }
+  .dt-matrix-card {
+    border: 1px solid #999999 !important;
+  }
+}
+
