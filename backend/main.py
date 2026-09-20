@@ -6,16 +6,9 @@ and Gemini explanations.
 
 from contextlib import asynccontextmanager
 
-try:
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
-except ImportError:
-    class FastAPI:
-        def __init__(self, *args, **kwargs): pass
-        def add_middleware(self, *args, **kwargs): pass
-        def include_router(self, *args, **kwargs): pass
-        def get(self, *args, **kwargs): return lambda f: f
-    class CORSMiddleware: pass
+from typing import Any
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .config.settings import settings
 from .api import fraud_router, url_router, media_router, analysis_router
@@ -23,7 +16,7 @@ from .database.session import init_db
 
 
 @asynccontextmanager
-async def lifespan(app: Any = None):
+async def lifespan(app: FastAPI):
     # Initialize database tables on startup
     init_db()
     yield

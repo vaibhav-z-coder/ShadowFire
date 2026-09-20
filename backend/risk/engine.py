@@ -113,6 +113,9 @@ class RiskEngine:
         if "cloned_audio" in ev_items or "synthetic_audio_signal" in ev_items or "deepfake_video" in ev_items:
             return "Media exhibits synthetic generation or deepfake manipulation. Verify caller or speaker authenticity via a separate trusted channel."
 
+        if "document_upfront_fee_demand" in ev_items or "free_email_hr_communication" in ev_items or "fake_offer_letter" in ev_items:
+            return "Do not pay any onboarding or verification fees. Legitimate employers never charge candidates for offer letters or background verification. Confirm authenticity directly with corporate HR."
+
         # Fallback based on risk level
         if risk_level == "high":
             return "Verify the source through official channels before sending money or personal information."

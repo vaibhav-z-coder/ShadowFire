@@ -19,7 +19,7 @@ import tempfile
 import uuid
 
 try:
-    from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+    from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
     from pydantic import BaseModel, Field
 except ImportError:
     class APIRouter:
@@ -45,6 +45,7 @@ from ..engines.url.detector import detect_url
 from ..engines.media.image.detector import detect_image
 from ..engines.media.video.detector import detect_video
 from ..engines.media.audio.detector import detect_audio
+from ..engines.document.detector import detect_document
 from ..evidence.engine import evidence_engine
 from ..risk.engine import risk_engine
 from ..explanation.gemini import gemini_explainer
@@ -57,6 +58,11 @@ router = APIRouter(prefix="/analyze", tags=["Digital Trust Analysis"])
 # Request Schemas
 class TextAnalysisRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Text message, job posting, or communication to inspect")
+
+
+class DocumentAnalysisRequest(BaseModel):
+    text: str = Field(..., min_length=1, description="Extracted text from document or offer letter")
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Optional document metadata (software, creator, dates)")
 
 
 class URLAnalysisRequest(BaseModel):
@@ -162,6 +168,53 @@ async def analyze_audio(file: UploadFile = File(...)) -> Dict[str, Any]:
             cleanup_file(tmp_path)
 
 
+@router.post("/document")
+async def analyze_document_endpoint(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    text: Optional[str] = Form(None)
+) -> Dict[str, Any]:
+    """Document Authenticity Checker - Offer letters, agreements, ID cards, certificates"""
+    extracted_text = text or ""
+    metadata = {}
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                extracted_text = body.get("text", "")
+                metadata = body.get("metadata", {})
+        except Exception:
+            pass
+
+    if file and hasattr(file, "filename") and file.filename:
+        metadata["filename"] = file.filename
+        content = await file.read()
+        fn = (file.filename or "").lower()
+        if fn.endswith((".txt", ".md", ".csv")):
+            extracted_text = content.decode("utf-8", errors="ignore")
+        elif fn.endswith(".pdf"):
+            try:
+                raw_str = content.decode("latin1", errors="ignore")
+                import re
+                stream_texts = re.findall(r"\((.*?)\)\s*Tj", raw_str)
+                if stream_texts:
+                    extracted_text = (extracted_text + "\n" + " ".join(stream_texts)).strip()
+            except Exception:
+                pass
+
+    if not extracted_text and file and hasattr(file, "filename") and file.filename:
+        extracted_text = f"Document verification: {file.filename}"
+
+    if not extracted_text:
+        raise HTTPException(status_code=400, detail="Document text or file must be provided.")
+
+    doc_result = detect_document(extracted_text, metadata=metadata)
+    fraud_result = detect_fraud(extracted_text)
+    return _build_trust_report([doc_result, fraud_result], raw_context=extracted_text[:500])
+
+
 @router.post("/multi")
 async def analyze_multi_combined(
     text: Optional[str] = Form(None),
@@ -170,7 +223,7 @@ async def analyze_multi_combined(
 ) -> Dict[str, Any]:
     """
     6. Combined / Multi-Check Mode (Section 8 of PDF Specification)
-    Simultaneously verifies Message + Embedded Link + Image/Media attachment.
+    Simultaneously verifies Message + Embedded Link + Image/Media/Document attachment.
     """
     if not text and not url and not file:
         raise HTTPException(status_code=400, detail="At least one input (text, url, or file) must be provided.")
@@ -180,13 +233,17 @@ async def analyze_multi_combined(
 
     if text and text.strip():
         engine_results.append(detect_fraud(text))
+        # Also run document engine if text contains offer/contract terms
+        t_lower = text.lower()
+        if any(k in t_lower for k in ["offer", "appointment", "salary", "stipend", "agreement", "joining"]):
+            engine_results.append(detect_document(text))
         context_parts.append(text)
 
     if url and url.strip():
         engine_results.append(detect_url(url))
         context_parts.append(url)
 
-    if file:
+    if file and hasattr(file, "filename") and file.filename:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = save_upload_file(await file.read(), file.filename or "attachment.jpg", Path(tmpdir))
             try:
@@ -195,8 +252,13 @@ async def analyze_multi_combined(
                     engine_results.append(detect_video(tmp_path))
                 elif fn.endswith((".mp3", ".wav", ".m4a", ".ogg")):
                     engine_results.append(detect_audio(tmp_path))
+                elif fn.endswith((".pdf", ".doc", ".docx", ".txt")):
+                    engine_results.append(detect_document(text or "", metadata={"filename": file.filename}, file_path=tmp_path))
                 else:
-                    engine_results.append(detect_image(tmp_path))
+                    img_res = detect_image(tmp_path)
+                    engine_results.append(img_res)
+                    if img_res.get("details", {}).get("metadata", {}).get("is_document_like"):
+                        engine_results.append(detect_document(text or "", metadata={"filename": file.filename, "is_document_like": True}))
                 context_parts.append(file.filename)
             finally:
                 cleanup_file(tmp_path)

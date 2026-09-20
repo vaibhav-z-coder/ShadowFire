@@ -34,7 +34,17 @@ SIGNAL_DISPLAY_MAP = {
     "ai_metadata_signature": "AI generator software signature",
     "ai_generated_image": "AI-generated image indicators",
     "excessive_subdomain_structure": "Obfuscated subdomain hierarchy",
-    "hyphenated_domain_structure": "Hyphenated spoof domain"
+    "hyphenated_domain_structure": "Hyphenated spoof domain",
+    "document_upfront_fee_demand": "Upfront fee or security deposit demand in document",
+    "free_email_hr_communication": "Official corporate document using public email (@gmail/@yahoo)",
+    "chat_app_interview_routing": "Hiring or appointment routed through chat app",
+    "unrealistic_compensation_rate": "Disproportionate income promise for unskilled work",
+    "coercive_document_ultimatum": "Coercive signing deadline or legal threat",
+    "generic_stamp_or_watermark": "Generic forged seal or template watermark",
+    "unverified_corporate_entity": "Missing corporate registration (CIN/Tax ID) or address",
+    "graphic_editor_metadata": "Document generated in consumer graphic editor (Canva/Photoshop)",
+    "fake_offer_letter": "Forged employment offer letter",
+    "fake_document": "Manipulated digital document"
 }
 
 
