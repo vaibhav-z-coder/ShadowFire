@@ -2519,19 +2519,23 @@ const saveUserScans = (userObj, scanList) => {
   }
 };
 
-const formatScanRecord = (res) => ({
-  id: res.id,
-  company: res.details?.company || 'Unknown company',
-  role: res.details?.role || 'Role not provided',
-  salary: res.details?.salary || '',
-  score: res.score,
-  band: res.band,
-  date: 'Just now',
-  redFlags: (res.redFlags || []).map((flag) =>
-    typeof flag === 'string' ? flag : flag.name
-  ),
-  result: res,
-});
+const formatScanRecord = (res, userEmail = null) => {
+  const email = userEmail || res?.userEmail || res?.details?.userEmail || res?.details?.user_email || null;
+  return {
+    id: res.id,
+    userEmail: email,
+    company: res.details?.company || 'Unknown company',
+    role: res.details?.role || 'Role not provided',
+    salary: res.details?.salary || '',
+    score: res.score,
+    band: res.band,
+    date: 'Just now',
+    redFlags: (res.redFlags || []).map((flag) =>
+      typeof flag === 'string' ? flag : flag.name
+    ),
+    result: res,
+  };
+};
 
 function App() {
   const [page, setPageState] = useState(getPageFromHash);
@@ -2595,14 +2599,14 @@ function App() {
     setUser(userData);
     localStorage.setItem('trusthire-user', JSON.stringify(userData));
 
-    // Load scans for the newly logged in user
+    // Load scans specifically for the newly logged in user
     const existing = loadUserScans(userData);
 
     // If there is an active/pending scan to save to the account:
     const scanToSave = pendingSaveResult || (page === 'result' && result && !saved ? result : null);
 
     if (scanToSave) {
-      const record = formatScanRecord(scanToSave);
+      const record = formatScanRecord(scanToSave, userData.email);
       const updated = [record, ...existing.filter((s) => s.id !== record.id)];
       setScans(updated);
       saveUserScans(userData, updated);
@@ -2616,9 +2620,11 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: scanToSave.text,
+            userEmail: userData.email,
             details: {
               ...scanToSave.details,
               userEmail: userData.email,
+              user_email: userData.email,
             },
           }),
         }).catch(() => {});
@@ -2637,36 +2643,54 @@ function App() {
   };
 
   const fetchScansFromBackend = async (userEmail = user?.email, filterBand = historyFilter, searchQ = historyQuery) => {
-    if (!userEmail) return;
+    if (!userEmail) {
+      setScans([]);
+      return;
+    }
+    const cleanEmail = userEmail.toLowerCase().trim();
     try {
       const params = new URLSearchParams();
-      params.append('userEmail', userEmail);
+      params.append('userEmail', cleanEmail);
       if (filterBand && filterBand !== 'all') params.append('band', filterBand);
       if (searchQ && searchQ.trim()) params.append('query', searchQ.trim());
       const res = await fetch(`${API_BASE_URL}/api/v1/scans?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          const userScans = data.filter((item) => !item.details?.userEmail || item.details.userEmail.toLowerCase() === userEmail.toLowerCase());
-          if (userScans.length > 0) {
-            const formatted = userScans.map((item) => ({
-              id: item.id,
-              company: item.details?.company || 'Unknown company',
-              role: item.details?.role || 'Role not provided',
-              salary: item.details?.salary || '',
-              score: item.score,
-              band: item.band,
-              date: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Today',
-              redFlags: (item.redFlags || []).map((f) => f.name || f),
-              result: item,
-            }));
-            setScans(formatted);
-            saveUserScans({ email: userEmail }, formatted);
-          }
+          // Strictly match only scans belonging to THIS user's registered email
+          const userScans = data.filter((item) => {
+            const itemEmail = item.userEmail || item.details?.userEmail || item.details?.user_email;
+            return itemEmail && itemEmail.toLowerCase().trim() === cleanEmail;
+          });
+
+          const formatted = userScans.map((item) => ({
+            id: item.id,
+            userEmail: cleanEmail,
+            company: item.details?.company || 'Unknown company',
+            role: item.details?.role || 'Role not provided',
+            salary: item.details?.salary || '',
+            score: item.score,
+            band: item.band,
+            date: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Today',
+            redFlags: (item.redFlags || []).map((f) => f.name || f),
+            result: item,
+          }));
+
+          // Merge with locally saved scans for this email to avoid duplicates
+          const localScans = loadUserScans({ email: cleanEmail });
+          const mapById = new Map();
+          formatted.forEach((s) => mapById.set(s.id, s));
+          localScans.forEach((s) => {
+            if (!mapById.has(s.id)) mapById.set(s.id, s);
+          });
+          const merged = Array.from(mapById.values());
+
+          setScans(merged);
+          saveUserScans({ email: cleanEmail }, merged);
         }
       }
     } catch (err) {
-      console.warn('Backend unavailable, using local history cache:', err);
+      console.warn('Backend unavailable, using isolated local history for user:', err);
     }
   };
 
@@ -2675,6 +2699,7 @@ function App() {
       fetchScansFromBackend(user.email, historyFilter, historyQuery);
     }
   }, [page, historyFilter, historyQuery, user?.email]);
+
 
   const [scanCategory, setScanCategory] = useState('scam');
   const [architectureOpen, setArchitectureOpen] = useState(false);
@@ -3262,7 +3287,7 @@ function App() {
       setAuth(true);
       return;
     }
-    const record = formatScanRecord(result);
+    const record = formatScanRecord(result, user.email);
     setScans((current) => {
       const updated = [record, ...current.filter((scan) => scan.id !== record.id)];
       saveUserScans(user, updated);
@@ -3276,14 +3301,17 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: result.text,
+          userEmail: user.email,
           details: {
             ...result.details,
             userEmail: user.email,
+            user_email: user.email,
           },
         }),
       }).catch(() => {});
     } catch {}
   };
+
 
   const deleteScan = (id) => {
     setScans((current) => {

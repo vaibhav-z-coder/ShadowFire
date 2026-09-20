@@ -113,6 +113,12 @@ class RiskEngine:
         if "cloned_audio" in ev_items or "synthetic_audio_signal" in ev_items or "deepfake_video" in ev_items:
             return "Media exhibits synthetic generation or deepfake manipulation. Verify caller or speaker authenticity via a separate trusted channel."
 
+        if "localized_splicing_detected" in ev_items or "face_artifact" in ev_items:
+            return "Visual forensics detected localized image splicing or digital tampering. Do not accept this file as authentic photographic proof."
+
+        if "fft_grid_artifacts_detected" in ev_items or "c2pa_provenance_detected" in ev_items or "png_diffusion_chunks_detected" in ev_items:
+            return "Image exhibits synthetic generative AI artifacts. Do not rely on this media for identity or proof-of-work verification."
+
         if "document_upfront_fee_demand" in ev_items or "free_email_hr_communication" in ev_items or "fake_offer_letter" in ev_items:
             return "Do not pay any onboarding or verification fees. Legitimate employers never charge candidates for offer letters or background verification. Confirm authenticity directly with corporate HR."
 

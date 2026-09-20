@@ -49,6 +49,13 @@ class GeminiExplanationLayer:
         return self._generate_grounded_fallback(evidence_payload)
 
     def _call_gemini_api(self, evidence_payload: Dict[str, Any], raw_context: Optional[str]) -> str:
+        import ssl
+        try:
+            import certifi
+            ctx = ssl.create_default_context(cafile=certifi.where())
+        except Exception:
+            ctx = ssl._create_unverified_context()
+
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
         
         system_instruction = (
@@ -72,7 +79,7 @@ class GeminiExplanationLayer:
         }).encode("utf-8")
 
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10, context=ctx) as response:
             res_json = json.loads(response.read().decode("utf-8"))
             candidate_text = res_json["candidates"][0]["content"]["parts"][0]["text"]
             return candidate_text.strip()

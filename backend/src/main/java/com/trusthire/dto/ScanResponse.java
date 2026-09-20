@@ -14,6 +14,7 @@ public class ScanResponse {
     private OfferDetailsDto details;
     private String text;
     private Instant createdAt;
+    private String userEmail;
 
     public ScanResponse() {}
 
@@ -31,6 +32,23 @@ public class ScanResponse {
         this.text = text;
         this.createdAt = createdAt;
     }
+
+    public ScanResponse(String id, int score, String band, String confidence,
+                        List<CheckResult> checks, List<CheckResult> redFlags, List<CheckResult> positives,
+                        OfferDetailsDto details, String text, Instant createdAt, String userEmail) {
+        this.id = id;
+        this.score = score;
+        this.band = band;
+        this.confidence = confidence;
+        this.checks = checks;
+        this.redFlags = redFlags;
+        this.positives = positives;
+        this.details = details;
+        this.text = text;
+        this.createdAt = createdAt;
+        this.userEmail = userEmail;
+    }
+
 
     public String getId() {
         return id;
@@ -111,4 +129,13 @@ public class ScanResponse {
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
+    }
 }
+

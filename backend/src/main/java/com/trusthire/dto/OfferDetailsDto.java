@@ -16,6 +16,9 @@ public class OfferDetailsDto {
     @JsonProperty("interview_channel")
     private String interviewChannel;
 
+    @JsonProperty("user_email")
+    private String userEmail;
+
     public OfferDetailsDto() {}
 
     public OfferDetailsDto(String company, String role, String salary, String recruiterEmail, String companyWebsite, String interviewChannel) {
@@ -26,6 +29,17 @@ public class OfferDetailsDto {
         this.companyWebsite = companyWebsite;
         this.interviewChannel = interviewChannel;
     }
+
+    public OfferDetailsDto(String company, String role, String salary, String recruiterEmail, String companyWebsite, String interviewChannel, String userEmail) {
+        this.company = company;
+        this.role = role;
+        this.salary = salary;
+        this.recruiterEmail = recruiterEmail;
+        this.companyWebsite = companyWebsite;
+        this.interviewChannel = interviewChannel;
+        this.userEmail = userEmail;
+    }
+
 
     public String getCompany() {
         return company;
@@ -74,4 +88,13 @@ public class OfferDetailsDto {
     public void setInterviewChannel(String interviewChannel) {
         this.interviewChannel = interviewChannel;
     }
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
+    }
 }
+

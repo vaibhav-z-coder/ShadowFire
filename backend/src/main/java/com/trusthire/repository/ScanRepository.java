@@ -19,4 +19,17 @@ public interface ScanRepository extends JpaRepository<ScanRecord, String> {
     List<ScanRecord> findByBandAndCompanyContainingIgnoreCaseOrBandAndRoleContainingIgnoreCaseOrderByCreatedAtDesc(
             RiskBand b1, String company, RiskBand b2, String role
     );
+
+    List<ScanRecord> findByUserEmailIgnoreCaseOrderByCreatedAtDesc(String userEmail);
+
+    List<ScanRecord> findByUserEmailIgnoreCaseAndBandOrderByCreatedAtDesc(String userEmail, RiskBand band);
+
+    List<ScanRecord> findByUserEmailIgnoreCaseAndCompanyContainingIgnoreCaseOrUserEmailIgnoreCaseAndRoleContainingIgnoreCaseOrderByCreatedAtDesc(
+            String u1, String company, String u2, String role
+    );
+
+    List<ScanRecord> findByUserEmailIgnoreCaseAndBandAndCompanyContainingIgnoreCaseOrUserEmailIgnoreCaseAndBandAndRoleContainingIgnoreCaseOrderByCreatedAtDesc(
+            String u1, RiskBand b1, String company, String u2, RiskBand b2, String role
+    );
 }
+

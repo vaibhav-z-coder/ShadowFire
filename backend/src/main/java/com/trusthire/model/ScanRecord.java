@@ -55,6 +55,9 @@ public class ScanRecord {
     @Column(name = "positives_json", columnDefinition = "TEXT")
     private String positivesJson;
 
+    @Column(name = "user_email")
+    private String userEmail;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -186,4 +189,13 @@ public class ScanRecord {
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
+    }
 }
+

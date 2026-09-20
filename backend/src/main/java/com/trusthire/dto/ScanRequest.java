@@ -11,11 +11,19 @@ public class ScanRequest {
 
     private OfferDetailsDto details;
 
+    private String userEmail;
+
     public ScanRequest() {}
 
     public ScanRequest(String text, OfferDetailsDto details) {
         this.text = text;
         this.details = details;
+    }
+
+    public ScanRequest(String text, OfferDetailsDto details, String userEmail) {
+        this.text = text;
+        this.details = details;
+        this.userEmail = userEmail;
     }
 
     public String getText() {
@@ -32,5 +40,13 @@ public class ScanRequest {
 
     public void setDetails(OfferDetailsDto details) {
         this.details = details;
+    }
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
     }
 }

@@ -29,10 +29,11 @@ public class ScanController {
 
     @GetMapping
     public ResponseEntity<List<ScanResponse>> getScans(
+            @RequestParam(required = false) String userEmail,
             @RequestParam(required = false) String band,
             @RequestParam(required = false) String query
     ) {
-        List<ScanResponse> scans = scanService.getAllScans(band, query);
+        List<ScanResponse> scans = scanService.getAllScans(userEmail, band, query);
         return ResponseEntity.ok(scans);
     }
 

@@ -58,6 +58,12 @@ public class ScanService {
         record.setOfferText(text);
         record.setCreatedAt(now);
 
+        String userEmail = request.getUserEmail();
+        if ((userEmail == null || userEmail.isBlank()) && request.getDetails() != null) {
+            userEmail = request.getDetails().getUserEmail();
+        }
+        record.setUserEmail(userEmail);
+
         try {
             record.setChecksJson(objectMapper.writeValueAsString(analysis.checks()));
             record.setRedFlagsJson(objectMapper.writeValueAsString(analysis.redFlags()));
@@ -78,12 +84,18 @@ public class ScanService {
                 analysis.positives(),
                 extractedDetails,
                 text,
-                now
+                now,
+                userEmail
         );
     }
 
     @Transactional(readOnly = true)
     public List<ScanResponse> getAllScans(String bandFilter, String searchQuery) {
+        return getAllScans(null, bandFilter, searchQuery);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ScanResponse> getAllScans(String userEmail, String bandFilter, String searchQuery) {
         RiskBand band = null;
         if (bandFilter != null && !bandFilter.isBlank() && !"all".equalsIgnoreCase(bandFilter)) {
             band = RiskBand.fromString(bandFilter);
@@ -92,14 +104,27 @@ public class ScanService {
         String query = (searchQuery != null && !searchQuery.isBlank()) ? searchQuery.trim() : null;
 
         List<ScanRecord> records;
-        if (band == null && query == null) {
-            records = scanRepository.findAllByOrderByCreatedAtDesc();
-        } else if (band != null && query == null) {
-            records = scanRepository.findByBandOrderByCreatedAtDesc(band);
-        } else if (band == null) {
-            records = scanRepository.findByCompanyContainingIgnoreCaseOrRoleContainingIgnoreCaseOrderByCreatedAtDesc(query, query);
+        if (userEmail != null && !userEmail.isBlank()) {
+            String u = userEmail.trim();
+            if (band == null && query == null) {
+                records = scanRepository.findByUserEmailIgnoreCaseOrderByCreatedAtDesc(u);
+            } else if (band != null && query == null) {
+                records = scanRepository.findByUserEmailIgnoreCaseAndBandOrderByCreatedAtDesc(u, band);
+            } else if (band == null) {
+                records = scanRepository.findByUserEmailIgnoreCaseAndCompanyContainingIgnoreCaseOrUserEmailIgnoreCaseAndRoleContainingIgnoreCaseOrderByCreatedAtDesc(u, query, u, query);
+            } else {
+                records = scanRepository.findByUserEmailIgnoreCaseAndBandAndCompanyContainingIgnoreCaseOrUserEmailIgnoreCaseAndBandAndRoleContainingIgnoreCaseOrderByCreatedAtDesc(u, band, query, u, band, query);
+            }
         } else {
-            records = scanRepository.findByBandAndCompanyContainingIgnoreCaseOrBandAndRoleContainingIgnoreCaseOrderByCreatedAtDesc(band, query, band, query);
+            if (band == null && query == null) {
+                records = scanRepository.findAllByOrderByCreatedAtDesc();
+            } else if (band != null && query == null) {
+                records = scanRepository.findByBandOrderByCreatedAtDesc(band);
+            } else if (band == null) {
+                records = scanRepository.findByCompanyContainingIgnoreCaseOrRoleContainingIgnoreCaseOrderByCreatedAtDesc(query, query);
+            } else {
+                records = scanRepository.findByBandAndCompanyContainingIgnoreCaseOrBandAndRoleContainingIgnoreCaseOrderByCreatedAtDesc(band, query, band, query);
+            }
         }
         return records.stream().map(this::toResponse).toList();
     }
@@ -125,7 +150,8 @@ public class ScanService {
                 record.getSalary(),
                 record.getRecruiterEmail(),
                 record.getCompanyWebsite(),
-                record.getInterviewChannel()
+                record.getInterviewChannel(),
+                record.getUserEmail()
         );
 
         List<CheckResult> checks = deserializeChecks(record.getChecksJson());
@@ -142,8 +168,10 @@ public class ScanService {
                 positives,
                 details,
                 record.getOfferText(),
-                record.getCreatedAt()
+                record.getCreatedAt(),
+                record.getUserEmail()
         );
+
     }
 
     private List<CheckResult> deserializeChecks(String json) {

@@ -44,7 +44,13 @@ SIGNAL_DISPLAY_MAP = {
     "unverified_corporate_entity": "Missing corporate registration (CIN/Tax ID) or address",
     "graphic_editor_metadata": "Document generated in consumer graphic editor (Canva/Photoshop)",
     "fake_offer_letter": "Forged employment offer letter",
-    "fake_document": "Manipulated digital document"
+    "fake_document": "Manipulated digital document",
+    "fft_grid_artifacts_detected": "Periodic FFT spectral grid spikes (latent diffusion upsampler)",
+    "diffusion_oversmoothing_detected": "Synthetic texture over-smoothing (lack of camera shot noise)",
+    "c2pa_provenance_detected": "C2PA / Content Credentials synthetic provenance manifest",
+    "png_diffusion_chunks_detected": "PNG generative diffusion prompt / sampler metadata chunk",
+    "localized_splicing_detected": "Error Level Analysis localized splicing / tampering",
+    "camera_hardware_verified": "Authentic optical camera hardware telemetry"
 }
 
 
