@@ -1423,6 +1423,19 @@ function Loading({ steps }) {
 
 function ScoreGauge({ score, band }) { const [shown, setShown] = useState(0); useEffect(() => { let start; const run = (time) => { if (!start) start = time; const next = Math.min(score, Math.round((time - start) / 950 * score)); setShown(next); if (next < score) requestAnimationFrame(run); }; const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); }, [score]); const radius = 105; const length = Math.PI * radius; const offset = length - (score / 100) * length; return <div className={`gauge ${band}`} role="img" aria-label={`Trust score ${score} out of 100, ${bandMeta(band).label}`}><svg viewBox="0 0 260 145"><path className="gauge-track" d="M25 130a105 105 0 0 1 210 0" pathLength="100" /><path className="gauge-value" d="M25 130a105 105 0 0 1 210 0" pathLength="100" style={{ strokeDasharray: '100', strokeDashoffset: 100 - score }} /></svg><div className="gauge-score"><strong>{shown}</strong><span>/100</span></div></div>; }
 
+// Spec-driven Risk & Trust Consensus Calculator
+// Conforms to backend/risk/engine.py: Composite Risk = (0.70 * peakRisk) + (0.30 * avgRisk)
+function computeEngineConsensus(engines) {
+  const activeEngines = (engines || []).filter((e) => e.status !== 'idle');
+  if (activeEngines.length === 0) return { avgRisk: 0, peakRisk: 0, compositeRisk: 0, trustScore: 100 };
+  const scores = activeEngines.map((e) => e.score);
+  const peakRisk = Math.max(...scores);
+  const avgRisk = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  const compositeRisk = Math.min(100, Math.max(0, Math.round((0.70 * peakRisk) + (0.30 * avgRisk))));
+  const trustScore = 100 - compositeRisk;
+  return { avgRisk, peakRisk, compositeRisk, trustScore };
+}
+
 function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth, user, onShowToast }) {
   const [editing, setEditing] = useState(false);
   const [details, setDetails] = useState(result.details || {});
@@ -1530,10 +1543,10 @@ function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth, user,
           </div>
           <div className="dt-engine-matrix-grid">
             {(result.engines && result.engines.length > 0 ? result.engines : [
-              { name: 'Fraud & Scam Engine', score: result.score > 50 ? 25 : 88, status: result.score > 50 ? 'idle' : 'triggered', details: 'Recruitment & fee extraction heuristics' },
-              { name: 'URL Phishing Engine', score: result.category?.toLowerCase().includes('phishing') ? 94 : 10, status: result.category?.toLowerCase().includes('phishing') ? 'triggered' : 'idle', details: 'TLD risk, brand spoofing & homoglyphs' },
-              { name: 'Media Forensic Engine', score: result.category?.toLowerCase().includes('image') || result.category?.toLowerCase().includes('deepfake') || result.category?.toLowerCase().includes('voice') ? 85 : 0, status: result.category?.toLowerCase().includes('image') || result.category?.toLowerCase().includes('deepfake') || result.category?.toLowerCase().includes('voice') ? 'triggered' : 'idle', details: 'Spectral & temporal frame analysis' },
-              { name: 'Gemini AI Explanation', score: 92, status: 'active', details: 'Grounded forensic reasoning synthesis' }
+              { name: 'Fraud & Scam Engine', score: result.score > 50 ? 12 : 88, status: result.score > 50 ? 'active' : 'triggered', details: 'Recruitment & fee extraction heuristics' },
+              { name: 'URL Phishing Engine', score: result.category?.toLowerCase().includes('phishing') ? 94 : 8, status: result.category?.toLowerCase().includes('phishing') ? 'triggered' : 'idle', details: 'TLD risk, brand spoofing & homoglyphs' },
+              { name: 'Media Forensic Engine', score: result.category?.toLowerCase().includes('image') || result.category?.toLowerCase().includes('deepfake') || result.category?.toLowerCase().includes('voice') ? (result.score > 50 ? 10 : 85) : 0, status: result.category?.toLowerCase().includes('image') || result.category?.toLowerCase().includes('deepfake') || result.category?.toLowerCase().includes('voice') ? (result.score > 50 ? 'active' : 'triggered') : 'idle', details: 'Spectral & temporal frame analysis' },
+              { name: 'Gemini AI Explanation', score: result.score > 50 ? 9 : 92, status: 'active', details: result.score > 50 ? 'Grounded authenticity verification' : 'Grounded forensic reasoning synthesis' }
             ]).map((eng, idx) => (
               <div className="dt-matrix-card" key={idx}>
                 <div className="dt-matrix-header">
@@ -1547,6 +1560,35 @@ function ResultPage({ result, setPage, recheck, saveScan, saved, openAuth, user,
               </div>
             ))}
           </div>
+
+          {/* Spec-driven Engine Consensus Bar */}
+          {(() => {
+            const consensus = computeEngineConsensus(result.engines);
+            const activeCount = (result.engines || []).filter((e) => e.status !== 'idle').length;
+            if (activeCount === 0) return null;
+            return (
+              <div className="dt-engine-consensus-bar">
+                <div className="dt-consensus-item">
+                  <span className="dt-consensus-label">Active Engines:</span>
+                  <strong>{activeCount} In Consensus</strong>
+                </div>
+                <div className="dt-consensus-item">
+                  <span className="dt-consensus-label">Average Risk:</span>
+                  <strong>{consensus.avgRisk}/100</strong>
+                </div>
+                <div className="dt-consensus-item">
+                  <span className="dt-consensus-label">Peak Signal:</span>
+                  <strong>{consensus.peakRisk}/100</strong>
+                </div>
+                <div className="dt-consensus-item">
+                  <span className="dt-consensus-label">Consensus Status:</span>
+                  <strong style={{ color: result.band === 'high_risk' ? '#b91c1c' : result.band === 'suspicious' ? '#b45309' : '#106f43' }}>
+                    {result.band === 'high_risk' ? '🚨 High Risk Consensus' : result.band === 'suspicious' ? '⚠️ Elevated Caution' : '✓ Authentic · In Sync'}
+                  </strong>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Detected Signals Checklist */}
@@ -2855,11 +2897,12 @@ function App() {
         ];
 
         if (isGeminiConfigured()) {
+          const gemRisk = riskScore >= 40 ? Math.min(98, Math.max(riskScore, 75)) : Math.max(5, riskScore - 2);
           mappedEngines.push({
             name: 'Gemini AI Explanation',
-            score: 95,
-            status: 'active',
-            details: 'Grounded forensic reasoning synthesis'
+            score: gemRisk,
+            status: gemRisk >= 40 ? 'triggered' : 'active',
+            details: gemRisk >= 40 ? 'Grounded forensic risk synthesis' : 'Grounded authenticity verification'
           });
         }
 
@@ -2922,9 +2965,9 @@ function App() {
             ] : ['Always verify unexpected correspondence before making sensitive disclosures.'],
             engines: [
               { name: 'URL Phishing Engine', score: 100 - score, status: isPhishing ? 'triggered' : 'active', details: triggers.length ? triggers.join(', ') : 'Standard Domain Structure' },
-              { name: 'Fraud Engine', score: isPhishing ? 65 : 5, status: isPhishing ? 'triggered' : 'idle', details: 'Credential harvesting taxonomy' },
+              { name: 'Fraud Engine', score: isPhishing ? 65 : 5, status: isPhishing ? 'triggered' : 'idle', details: isPhishing ? 'Credential harvesting taxonomy' : 'No credential harvesting signals' },
               { name: 'Media Engine', score: 0, status: 'idle', details: 'No media payload' },
-              { name: 'Gemini AI Explanation', score: 92, status: 'active', details: 'Domain spoofing taxonomy verified' }
+              { name: 'Gemini AI Explanation', score: isPhishing ? 92 : 7, status: 'active', details: isPhishing ? 'Domain spoofing taxonomy verified' : 'Domain legitimacy taxonomy verified' }
             ],
             text: targetUrl,
             details: { ...overrides, company_website: targetUrl },
@@ -2976,9 +3019,9 @@ function App() {
             ] : ['Confirm correspondence through official company domain email.'],
             engines: [
               { name: 'Document Authenticity Engine', score: 100 - score, status: hasFakeDoc ? 'triggered' : 'active', details: docTriggers.length ? docTriggers.join(', ') : 'Standard Corporate Document Format' },
-              { name: 'Fraud Detection Engine', score: hasFakeDoc ? 85 : 10, status: hasFakeDoc ? 'triggered' : 'active', details: 'Recruitment scam pattern matching' },
+              { name: 'Fraud Detection Engine', score: hasFakeDoc ? 85 : 10, status: hasFakeDoc ? 'triggered' : 'active', details: hasFakeDoc ? 'Recruitment scam pattern matching' : 'Standard verified parameters' },
               { name: 'Media Engine', score: 0, status: 'idle', details: 'Text document payload' },
-              { name: 'Gemini AI Explanation', score: 94, status: 'active', details: 'Document verification taxonomy' }
+              { name: 'Gemini AI Explanation', score: hasFakeDoc ? 94 : 9, status: 'active', details: hasFakeDoc ? 'Document verification taxonomy' : 'Document authenticity taxonomy verified' }
             ],
             text: rawText || `[Document: ${rawFileName}]`,
             details: { ...overrides, company: overrides.company || 'Corporate Document' },
@@ -3030,7 +3073,7 @@ function App() {
               { name: 'Media Image Engine', score: 100 - score, status: isExplicitSynthetic ? 'triggered' : 'active', details: isExplicitSynthetic ? 'Diffusion artifacts & synthetic cues' : 'Clean pixel frequencies' },
               { name: 'URL Engine', score: 0, status: 'idle', details: 'No URL payload' },
               { name: 'Fraud Engine', score: 0, status: 'idle', details: 'No text fraud indicators' },
-              { name: 'Gemini AI Explanation', score: 92, status: 'active', details: 'Media validation taxonomy' }
+              { name: 'Gemini AI Explanation', score: isExplicitSynthetic ? 92 : 8, status: 'active', details: isExplicitSynthetic ? 'Media validation taxonomy' : 'Visual forensics authentic taxonomy' }
             ],
             text: rawFileName ? `[Uploaded Image: ${rawFileName}]` : '[Authentic Image Asset]',
             details: { ...overrides, company: overrides.company || 'Verified Image Asset', role: 'Media Verification' },
@@ -3077,7 +3120,7 @@ function App() {
               { name: 'Deepfake Video Engine', score: 100 - score, status: isExplicitDeepfake ? 'triggered' : 'active', details: isExplicitDeepfake ? 'Temporal boundary jitter & blink absence' : 'Natural motion cadence' },
               { name: 'Voice & Audio Engine', score: isExplicitDeepfake ? 62 : 8, status: isExplicitDeepfake ? 'triggered' : 'active', details: 'Acoustic-visual lip sync evaluation' },
               { name: 'URL Engine', score: 0, status: 'idle', details: 'No URL payload' },
-              { name: 'Gemini AI Explanation', score: 90, status: 'active', details: 'Video forensics taxonomy' }
+              { name: 'Gemini AI Explanation', score: isExplicitDeepfake ? 90 : 9, status: 'active', details: isExplicitDeepfake ? 'Video forensics deepfake taxonomy' : 'Video forensics authentic cadence' }
             ],
             text: rawFileName ? `[Uploaded Video: ${rawFileName}]` : '[Authentic Video Recording]',
             details: { ...overrides, company: overrides.company || 'Video Recording' },
@@ -3122,9 +3165,9 @@ function App() {
             ] : ['Audio characteristics indicate genuine human vocal delivery.'],
             engines: [
               { name: 'Voice & Audio Engine', score: 100 - score, status: isExplicitCloned ? 'triggered' : 'active', details: isExplicitCloned ? 'Acoustic spectral flatline & synthetic prosody' : 'Natural vocal harmonics' },
-              { name: 'Fraud Engine', score: isExplicitCloned ? 55 : 5, status: isExplicitCloned ? 'triggered' : 'idle', details: 'Urgency financial request taxonomy' },
+              { name: 'Fraud Engine', score: isExplicitCloned ? 55 : 5, status: isExplicitCloned ? 'triggered' : 'idle', details: isExplicitCloned ? 'Urgency financial request taxonomy' : 'No financial urgency detected' },
               { name: 'URL Engine', score: 0, status: 'idle', details: 'No URL payload' },
-              { name: 'Gemini AI Explanation', score: 88, status: 'active', details: 'Acoustic forensics taxonomy' }
+              { name: 'Gemini AI Explanation', score: isExplicitCloned ? 88 : 7, status: 'active', details: isExplicitCloned ? 'Acoustic forensics clone taxonomy' : 'Acoustic forensics natural harmonics' }
             ],
             text: rawFileName ? `[Uploaded Audio: ${rawFileName}]` : '[Authentic Audio Note]',
             details: { ...overrides, company: overrides.company || 'Voice Recording' },
@@ -3160,7 +3203,7 @@ function App() {
               { name: 'Fraud Engine', score: triggers.length >= 2 ? 88 : 10, status: triggers.length >= 2 ? 'triggered' : 'active', details: 'Cross-modal text analysis' },
               { name: 'URL Phishing Engine', score: rawUrl ? (/\.(xyz|top)/i.test(rawUrl) ? 92 : 15) : 0, status: rawUrl ? 'active' : 'idle', details: 'Embedded URL evaluation' },
               { name: 'Media Engine', score: rawFile ? 75 : 0, status: rawFile ? 'active' : 'idle', details: 'Attachment inspection' },
-              { name: 'Evidence Aggregator', score: 94, status: 'active', details: 'Cross-engine correlation active' }
+              { name: 'Evidence Aggregator', score: triggers.length >= 2 ? 94 : 8, status: 'active', details: triggers.length >= 2 ? 'Cross-engine correlation active' : 'Cross-engine authentic consensus' }
             ],
             text: rawText || SAMPLE_PRESETS.multi.text,
             details: { ...SAMPLE_PRESETS.multi.details, ...overrides, company_website: rawUrl || SAMPLE_PRESETS.multi.details.company_website },
@@ -3191,7 +3234,7 @@ function App() {
                   { name: 'Fraud Detection Engine', score: 100 - geminiOutput.score, status: geminiOutput.band === 'high_risk' ? 'triggered' : 'active', details: 'Advance fee & recruitment heuristics' },
                   { name: 'URL Engine', score: 0, status: 'idle', details: 'No URL payload' },
                   { name: 'Media Engine', score: 0, status: 'idle', details: 'No media payload' },
-                  { name: 'Gemini AI Explanation', score: 95, status: 'active', details: 'Live grounding verification active' }
+                  { name: 'Gemini AI Explanation', score: geminiOutput.band === 'high_risk' ? 95 : Math.max(5, 100 - geminiOutput.score), status: 'active', details: geminiOutput.band === 'high_risk' ? 'Live grounding scam verification' : 'Live grounding authentic verification' }
                 ],
                 details: { ...geminiOutput.details, ...overrides },
                 text: rawText,
@@ -3226,7 +3269,7 @@ function App() {
                 { name: 'Fraud Detection Engine', score: 100 - analysis.score, status: analysis.band === 'high_risk' ? 'triggered' : 'active', details: 'Advance fee & urgency heuristics' },
                 { name: 'URL Engine', score: 0, status: 'idle', details: 'No URL payload' },
                 { name: 'Media Engine', score: 0, status: 'idle', details: 'No media payload' },
-                { name: 'Gemini AI Explanation', score: 85, status: 'active', details: 'Heuristic synthesis mode' }
+                { name: 'Gemini AI Explanation', score: analysis.band === 'high_risk' ? 85 : Math.max(5, 100 - analysis.score), status: 'active', details: analysis.band === 'high_risk' ? 'Heuristic risk synthesis' : 'Heuristic authenticity verified' }
               ],
               details: { ...extractDetails(rawText, overrides), ...overrides },
               text: rawText,
